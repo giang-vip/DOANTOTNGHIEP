@@ -16,6 +16,8 @@ export interface User {
   createdAt: string;
 }
 
+export type StudentStatus = 'active' | 'on_leave' | 'dropped_out' | 'graduated' | 'suspended';
+
 export interface Student {
   id: string; // MSSV, e.g. SV001
   userId: string;
@@ -23,7 +25,7 @@ export interface Student {
   email: string;
   classCode: string; // e.g. K64-CNTT
   phone: string;
-  status: 'active' | 'suspended';
+  status: StudentStatus;
   birthDate: string;
   gender: 'Nam' | 'Nữ' | 'Khác';
   gpa: number;
@@ -32,6 +34,8 @@ export interface Student {
   facePhotos?: string[];
 }
 
+export type TeacherStatus = 'active' | 'on_leave' | 'suspended';
+
 export interface Teacher {
   id: string; // MSGV, e.g. GV001
   userId: string;
@@ -39,7 +43,7 @@ export interface Teacher {
   email: string;
   department: string; // Khoa, e.g. Công nghệ thông tin
   phone: string;
-  status: 'active' | 'suspended';
+  status: TeacherStatus;
   avatar?: string;
 }
 

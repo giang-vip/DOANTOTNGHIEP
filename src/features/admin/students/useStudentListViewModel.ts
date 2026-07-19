@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../../models/store';
-import { Student } from '../../../types';
+import { Student, StudentStatus } from '../../../types';
 
 export function useStudentListViewModel() {
-  const { students, addStudent, updateStudent } = useStore();
+  const { students, addStudent, updateStudent, deleteStudent } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
@@ -27,6 +27,7 @@ export function useStudentListViewModel() {
     classCode: '',
     birthDate: '',
     gender: 'Nam' as 'Nam' | 'Nữ' | 'Khác',
+    status: 'active' as StudentStatus,
     password: '123'
   });
 
@@ -69,6 +70,7 @@ export function useStudentListViewModel() {
       classCode: 'K64-CNTT',
       birthDate: '2005-01-01',
       gender: 'Nam',
+      status: 'active',
       password: '123'
     });
     setErrors({});
@@ -86,6 +88,7 @@ export function useStudentListViewModel() {
       classCode: s.classCode,
       birthDate: s.birthDate,
       gender: s.gender,
+      status: s.status,
       password: pwd
     });
     setErrors({});
@@ -123,7 +126,8 @@ export function useStudentListViewModel() {
         phone: formData.phone.trim(),
         classCode: formData.classCode.trim(),
         birthDate: formData.birthDate,
-        gender: formData.gender
+        gender: formData.gender,
+        status: formData.status
       });
 
       // Update password inside passwords map
@@ -142,7 +146,7 @@ export function useStudentListViewModel() {
         classCode: formData.classCode.toUpperCase().trim(),
         birthDate: formData.birthDate,
         gender: formData.gender,
-        status: 'active'
+        status: formData.status
       });
 
       // Write password in localStorage
@@ -157,12 +161,19 @@ export function useStudentListViewModel() {
     setIsModalOpen(false);
   };
 
-  const toggleStudentStatus = (id: string, currentStatus: 'active' | 'suspended', onSuccess: (msg: string) => void) => {
-    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+  const toggleStudentStatus = (id: string, currentStatus: StudentStatus, onSuccess: (msg: string) => void) => {
+    const newStatus: StudentStatus = currentStatus === 'active' ? 'on_leave' : 'active';
     const actionLabel = newStatus === 'active' ? 'mở khóa' : 'khóa';
     if (confirm(`Bạn có chắc muốn ${actionLabel} sinh viên ${id}?`)) {
       updateStudent(id, { status: newStatus });
       onSuccess(`Đã ${actionLabel} tài khoản sinh viên ${id} thành công!`);
+    }
+  };
+
+  const deleteStudentAccount = (id: string, onSuccess: (msg: string) => void) => {
+    if (confirm(`Bạn có chắc muốn xóa/khóa tài khoản sinh viên ${id}?`)) {
+      deleteStudent(id);
+      onSuccess(`Đã khóa tài khoản sinh viên ${id} thành công!`);
     }
   };
 
@@ -183,6 +194,7 @@ export function useStudentListViewModel() {
     handleInputChange,
     handleSave,
     toggleStudentStatus,
+    deleteStudentAccount,
     getStudentPassword,
     resetStudentPassword
   };

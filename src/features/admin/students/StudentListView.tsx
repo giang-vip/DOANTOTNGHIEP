@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStudentListViewModel } from './useStudentListViewModel';
 import { Card, Table, Modal, FormInput, Badge } from '../../../components/UI';
-import { Plus, Search, Edit2, ShieldAlert, Key, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, ShieldAlert, Key, AlertCircle, Trash2 } from 'lucide-react';
 
 interface StudentListViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
@@ -24,10 +24,21 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
     openEditModal,
     handleInputChange,
     handleSave,
-    toggleStudentStatus,
+    deleteStudentAccount,
     getStudentPassword,
     resetStudentPassword
   } = useStudentListViewModel();
+
+  const getStudentStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return 'Đang học';
+      case 'on_leave':
+      case 'suspended': return 'Tạm nghỉ';
+      case 'dropped_out': return 'Thôi học';
+      case 'graduated': return 'Đã tốt nghiệp';
+      default: return 'Không xác định';
+    }
+  };
 
   const handleSaveAction = () => {
     handleSave((msg) => triggerToast(msg, 'success'));
@@ -79,16 +90,10 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
     },
     {
       header: 'Trạng Thái',
-      accessor: (s: any) => (
-        <button
-          onClick={() => toggleStudentStatus(s.id, s.status, (msg) => triggerToast(msg, 'success'))}
-          className="cursor-pointer"
-        >
-          <Badge variant={s.status === 'active' ? 'success' : 'danger'}>
-            {s.status === 'active' ? 'Đang học' : 'Đã khóa'}
-          </Badge>
-        </button>
-      )
+      accessor: (s: any) => {
+        const variant = s.status === 'active' ? 'success' : s.status === 'graduated' ? 'info' : 'warning';
+        return <Badge variant={variant}>{getStudentStatusLabel(s.status)}</Badge>;
+      }
     },
     {
       header: 'Thao Tác',
@@ -100,6 +105,13 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
           >
             <Edit2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => deleteStudentAccount(s.id, (msg) => triggerToast(msg, 'success'))}
+            title="Xóa / khóa tài khoản"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
           <button
             onClick={() => resetStudentPassword(s.id, (msg) => triggerToast(msg, 'success'))}
@@ -273,6 +285,21 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
                 <option value="Khác">Khác</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Trạng Thái</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleInputChange}
+              className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
+            >
+              <option value="active">Đang học</option>
+              <option value="on_leave">Tạm nghỉ</option>
+              <option value="dropped_out">Thôi học</option>
+              <option value="graduated">Đã tốt nghiệp</option>
+            </select>
           </div>
 
           {editingStudent && (

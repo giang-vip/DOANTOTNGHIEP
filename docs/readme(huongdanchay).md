@@ -3,6 +3,9 @@ cd "d:\DO AN TRUONG HOC THONG MINH\quan-ly-va-ho-tro-hoc-tap-hung-nhan"
 Cài các package cần thiết
 npm install
 
+Nếu bị báo lỗi thiếu type React/React DOM, tiếp theo chạy:
+npm install --save-dev @types/react @types/react-dom
+
 Tạo file môi trường
 Copy-Item .env.example .env.local
 

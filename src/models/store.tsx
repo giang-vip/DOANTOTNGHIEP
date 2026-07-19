@@ -256,8 +256,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteStudent = (id: string) => {
-    // Soft delete: set status to suspended
-    updateStudent(id, { status: 'suspended' });
+    // Soft delete: mark as temporarily inactive for admin-managed status control
+    updateStudent(id, { status: 'on_leave' });
   };
 
   // Teacher Actions
@@ -302,8 +302,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteTeacher = (id: string) => {
-    // Soft delete: set status to suspended
-    updateTeacher(id, { status: 'suspended' });
+    // Soft delete: mark as temporarily inactive for admin-managed status control
+    updateTeacher(id, { status: 'on_leave' });
   };
 
   // Department Actions

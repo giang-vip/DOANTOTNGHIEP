@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../../models/store';
-import { Teacher } from '../../../types';
+import { Teacher, TeacherStatus } from '../../../types';
 
 export function useTeacherListViewModel() {
-  const { teachers, departments, addTeacher, updateTeacher } = useStore();
+  const { teachers, departments, addTeacher, updateTeacher, deleteTeacher } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
@@ -25,6 +25,7 @@ export function useTeacherListViewModel() {
     email: '',
     phone: '',
     department: '',
+    status: 'active' as TeacherStatus,
     password: '123' // default password
   });
 
@@ -63,6 +64,7 @@ export function useTeacherListViewModel() {
       email: '',
       phone: '',
       department: departments[0]?.name || '',
+      status: 'active',
       password: '123'
     });
     setErrors({});
@@ -78,6 +80,7 @@ export function useTeacherListViewModel() {
       email: t.email,
       phone: t.phone,
       department: t.department,
+      status: t.status,
       password: pwd
     });
     setErrors({});
@@ -112,7 +115,8 @@ export function useTeacherListViewModel() {
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        department: formData.department
+        department: formData.department,
+        status: formData.status
       });
 
       // Update password if changed
@@ -129,7 +133,7 @@ export function useTeacherListViewModel() {
         email: formData.email.trim(),
         phone: formData.phone.trim(),
         department: formData.department,
-        status: 'active'
+        status: formData.status
       });
 
       // Set custom or default password
@@ -144,12 +148,19 @@ export function useTeacherListViewModel() {
     setIsModalOpen(false);
   };
 
-  const toggleTeacherStatus = (id: string, currentStatus: 'active' | 'suspended', onSuccess: (msg: string) => void) => {
-    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+  const toggleTeacherStatus = (id: string, currentStatus: TeacherStatus, onSuccess: (msg: string) => void) => {
+    const newStatus: TeacherStatus = currentStatus === 'active' ? 'on_leave' : 'active';
     const actionLabel = newStatus === 'active' ? 'mở khóa' : 'khóa';
     if (confirm(`Bạn có chắc muốn ${actionLabel} giảng viên ${id}?`)) {
       updateTeacher(id, { status: newStatus });
       onSuccess(`Đã ${actionLabel} tài khoản giảng viên ${id} thành công!`);
+    }
+  };
+
+  const deleteTeacherAccount = (id: string, onSuccess: (msg: string) => void) => {
+    if (confirm(`Bạn có chắc muốn xóa/khóa tài khoản giảng viên ${id}?`)) {
+      deleteTeacher(id);
+      onSuccess(`Đã khóa tài khoản giảng viên ${id} thành công!`);
     }
   };
 
@@ -170,6 +181,7 @@ export function useTeacherListViewModel() {
     handleInputChange,
     handleSave,
     toggleTeacherStatus,
+    deleteTeacherAccount,
     getTeacherPassword,
     resetTeacherPassword
   };
