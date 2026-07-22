@@ -23,12 +23,14 @@ export function useStudentViewModel(studentId: string) {
     registrationPeriod,
     materials,
     assignments,
+    quizQuestions,
     submissions,
     grades,
     notifications,
     enrollStudentInClass,
     dropStudentFromClass,
-    addSubmission
+    addSubmission,
+    saveQuizAnswers
   } = store;
 
   // 1. Get current student details
@@ -145,6 +147,33 @@ export function useStudentViewModel(studentId: string) {
     return submissions.find(s => s.assignmentId === assignmentId && s.studentId === studentId);
   };
 
+  const getQuizQuestionsForAssignment = (assignmentId: string) => {
+    return quizQuestions.filter(q => q.assignmentId === assignmentId).sort((a, b) => a.order - b.order);
+  };
+
+  const submitQuizAnswers = (assignmentId: string, classId: string, answers: { questionId: string; selectedChoice: 'A' | 'B' | 'C' | 'D' | null }[]) => {
+    addSubmission({
+      assignmentId,
+      classId,
+      studentId,
+      studentName: currentStudent?.name || 'Sinh viên',
+      content: 'Bài trắc nghiệm',
+      fileName: undefined,
+      fileUrl: undefined
+    });
+
+    const savedSubmissions = JSON.parse(localStorage.getItem('hn_submissions') || '[]') as Submission[];
+    const createdSubmission = savedSubmissions
+      .filter((s: Submission) => s.assignmentId === assignmentId && s.studentId === studentId)
+      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
+
+    if (createdSubmission) {
+      saveQuizAnswers(createdSubmission.id, answers);
+    }
+
+    return createdSubmission;
+  };
+
   // Submit an assignment
   const submitAssignmentForm = (assignmentId: string, classId: string, content: string, fileName?: string) => {
     const currentSub = getStudentSubmission(assignmentId);
@@ -252,6 +281,8 @@ export function useStudentViewModel(studentId: string) {
     getEnrolledMaterials,
     getEnrolledAssignments,
     getStudentSubmission,
+    getQuizQuestionsForAssignment,
+    submitQuizAnswers,
 
     registerClass,
     unregisterClass,

@@ -11,6 +11,7 @@ import {
   AttendanceRecord,
   LearningMaterial,
   Assignment,
+  QuizQuestion,
   Submission,
   GradeRecord,
   AttendanceStatus
@@ -26,6 +27,7 @@ export function useTeacherViewModel(teacherId: string) {
     attendanceRecords,
     materials,
     assignments,
+    quizQuestions,
     submissions,
     grades,
     addAttendanceSession,
@@ -37,7 +39,10 @@ export function useTeacherViewModel(teacherId: string) {
     deleteAssignment,
     gradeSubmission,
     updateGrades,
-    addNotification
+    addNotification,
+    addQuizQuestion,
+    updateQuizQuestion,
+    deleteQuizQuestion
   } = store;
 
   // 1. Get classes assigned to this teacher
@@ -100,6 +105,7 @@ export function useTeacherViewModel(teacherId: string) {
       classId,
       title,
       type,
+      url: `https://example.com/${title.toLowerCase().replace(/\s+/g, '-')}.${type}`,
       fileName,
       fileSize,
       description
@@ -123,6 +129,22 @@ export function useTeacherViewModel(teacherId: string) {
 
   const removeAssignment = (assignmentId: string) => {
     deleteAssignment(assignmentId);
+  };
+
+  const getQuizQuestions = (assignmentId: string) => {
+    return quizQuestions.filter(q => q.assignmentId === assignmentId).sort((a, b) => a.order - b.order);
+  };
+
+  const createQuizQuestion = (data: Omit<QuizQuestion, 'id'>) => {
+    return addQuizQuestion(data);
+  };
+
+  const editQuizQuestion = (id: string, updates: Partial<QuizQuestion>) => {
+    updateQuizQuestion(id, updates);
+  };
+
+  const removeQuizQuestion = (id: string) => {
+    deleteQuizQuestion(id);
   };
 
   const getAssignmentSubmissions = (assignmentId: string) => {
@@ -185,6 +207,10 @@ export function useTeacherViewModel(teacherId: string) {
     // Homework Actions
     createAssignment,
     removeAssignment,
+    getQuizQuestions,
+    createQuizQuestion,
+    editQuizQuestion,
+    removeQuizQuestion,
     getAssignmentSubmissions,
     gradeStudentSubmission,
 

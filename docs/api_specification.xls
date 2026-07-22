@@ -1,0 +1,675 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8">
+<style>
+  table { border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 11px; }
+  th { background-color: #1e293b; color: #ffffff; font-weight: bold; padding: 8px; border: 1px solid #cbd5e1; text-align: left; }
+  td { padding: 6px; border: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) { background-color: #f8fafc; }
+  .auth-row { background-color: #fef08a !important; }
+  .admin-row { background-color: #dbeafe !important; }
+  .teacher-row { background-color: #f3e8ff !important; }
+  .student-row { background-color: #dcfce7 !important; }
+</style>
+</head>
+<body>
+<table border="1">
+  <thead>
+    <tr>
+      <th>Mã API</th><th>Đối tượng</th><th>Chức năng</th><th>Method</th><th>Endpoint</th><th>Dữ liệu đầu vào (Payload)</th><th>Dữ liệu đầu ra (Response)</th><th>Ràng buộc & Validate</th><th>Phân quyền (Role)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="auth-row">
+      <td><b>API_AUTH_01</b></td>
+      <td>COMMON</td>
+      <td>Đăng nhập hệ thống</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/auth/login</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"username": "string", "password": "string"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"token": "JWT_TOKEN", "refreshToken": "string", "role": "ADMIN/TEACHER/STUDENT", "userInfo": {...}}</pre></td>
+      <td>Username và Password không được trống. Mã hóa mật khẩu khi so khớp.</td>
+      <td>Tự do</td>
+    </tr>
+    <tr class="auth-row">
+      <td><b>API_AUTH_02</b></td>
+      <td>COMMON</td>
+      <td>Đăng xuất</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/auth/logout</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true, "message": "Đăng xuất thành công"}</pre></td>
+      <td>Vô hiệu hóa JWT token ở blacklist bên server.</td>
+      <td>Tất cả</td>
+    </tr>
+    <tr class="auth-row">
+      <td><b>API_AUTH_03</b></td>
+      <td>COMMON</td>
+      <td>Lấy thông tin tài khoản hiện tại</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/auth/me</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "username": "...", "fullName": "...", "email": "...", "avatarUrl": "..."}</pre></td>
+      <td>Giải mã JWT token gửi lên để tìm User tương ứng.</td>
+      <td>Tất cả</td>
+    </tr>
+    <tr class="auth-row">
+      <td><b>API_AUTH_04</b></td>
+      <td>COMMON</td>
+      <td>Đổi mật khẩu</td>
+      <td><span style="font-weight: bold; color: #b45309">PUT</span></td>
+      <td><code>/api/auth/change-password</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"oldPassword": "string", "newPassword": "string"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true, "message": "Đổi mật khẩu thành công"}</pre></td>
+      <td>Mật khẩu cũ phải khớp với DB, mật khẩu mới tối thiểu 6 ký tự.</td>
+      <td>Tất cả</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_01</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách người dùng</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/users</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?page=0&amp;size=10&amp;search=keyword&amp;roleId=1</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 1, "username": "sv01", "email": "sv01@gmail.com", "status": "ACTIVE"}], "totalElements": 200}</pre></td>
+      <td>Hỗ trợ tìm kiếm theo họ tên, username, email và lọc theo vai trò (Role).</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_02</b></td>
+      <td>ADMIN</td>
+      <td>Xem chi tiết người dùng</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/users/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "username": "sv01", "email": "sv01@gmail.com", "fullName": "...", "phone": "...", "roles": [...]}</pre></td>
+      <td>Mã id phải tồn tại trong DB.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_03</b></td>
+      <td>ADMIN</td>
+      <td>Tạo tài khoản người dùng mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/users</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"username": "sv02", "password": "...", "email": "sv02@gmail.com", "fullName": "Nguyễn Văn B", "phone": "...", "roleId": 3}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 2, "username": "sv02", "email": "sv02@gmail.com"}</pre></td>
+      <td>Username và Email phải là duy nhất. Mật khẩu được mã hóa BCrypt trước khi lưu.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_04</b></td>
+      <td>ADMIN</td>
+      <td>Cập nhật tài khoản người dùng</td>
+      <td><span style="font-weight: bold; color: #b45309">PUT</span></td>
+      <td><code>/api/admin/users/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"email": "string", "fullName": "string", "phone": "string", "status": "ACTIVE/INACTIVE"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 2, "username": "sv02", "status": "ACTIVE"}</pre></td>
+      <td>Mã id phải tồn tại. Định dạng email phải hợp lệ. Trạng thái chỉ nhận ACTIVE hoặc INACTIVE.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_05</b></td>
+      <td>ADMIN</td>
+      <td>Khóa / Xóa tài khoản</td>
+      <td><span style="font-weight: bold; color: #b45309">DELETE</span></td>
+      <td><code>/api/admin/users/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true, "message": "Đã đổi trạng thái tài khoản thành INACTIVE"}</pre></td>
+      <td>Không cho phép Admin tự khóa chính mình.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_06</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách vai trò (Roles)</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/roles</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 1, "name": "ADMIN"}, {"id": 2, "name": "TEACHER"}, {"id": 3, "name": "STUDENT"}]</pre></td>
+      <td>Trả về danh sách tĩnh từ bảng roles.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_07</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách khoa hành chính</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/departments</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?page=0&amp;size=10</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 1, "code": "CNTT", "name": "Công nghệ thông tin"}], "totalElements": 8}</pre></td>
+      <td>Hỗ trợ phân trang và tìm kiếm theo tên khoa.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_08</b></td>
+      <td>ADMIN</td>
+      <td>Tạo mới khoa hành chính</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/departments</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"code": "CNTT", "name": "Công nghệ thông tin", "description": "..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "code": "CNTT", "name": "Công nghệ thông tin"}</pre></td>
+      <td>Mã khoa (code) là duy nhất (Unique) và không được rỗng.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_09</b></td>
+      <td>ADMIN</td>
+      <td>Sửa khoa hành chính</td>
+      <td><span style="font-weight: bold; color: #b45309">PUT</span></td>
+      <td><code>/api/admin/departments/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"name": "Công nghệ thông tin và Truyền thông", "description": "..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "name": "Công nghệ thông tin và Truyền thông"}</pre></td>
+      <td>ID khoa phải tồn tại trong DB.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_10</b></td>
+      <td>ADMIN</td>
+      <td>Xóa khoa hành chính</td>
+      <td><span style="font-weight: bold; color: #b45309">DELETE</span></td>
+      <td><code>/api/admin/departments/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true}</pre></td>
+      <td>Chỉ xóa được khi không có Sinh viên, Giảng viên hoặc Lớp học nào thuộc khoa này.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_11</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách năm học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/academic-years</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 1, "code": "2025-2026", "isCurrent": true}]</pre></td>
+      <td>Hiển thị tất cả các năm học.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_12</b></td>
+      <td>ADMIN</td>
+      <td>Tạo mới năm học</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/academic-years</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"code": "2025-2026", "startDate": "2025-09-05", "endDate": "2026-06-30", "isCurrent": true}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "code": "2025-2026"}</pre></td>
+      <td>Mã năm học (code) unique. Ngày bắt đầu phải trước ngày kết thúc.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_13</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách kỳ học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/semesters</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?academicYearId=1</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 10, "code": "HK1", "name": "Học kỳ 1", "isCurrent": true}]</pre></td>
+      <td>Lọc kỳ học theo ID năm học tương ứng.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_14</b></td>
+      <td>ADMIN</td>
+      <td>Tạo kỳ học mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/semesters</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"academicYearId": 1, "code": "HK1", "name": "Học kỳ 1", "startDate": "2025-09-05", "endDate": "2026-01-15"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 10, "code": "HK1"}</pre></td>
+      <td>Cặp (academicYearId, code) phải là duy nhất.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_15</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách sinh viên</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/students</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?page=0&amp;size=10&amp;search=keyword</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 1, "studentCode": "SV001", "fullName": "Nguyễn Văn A"}], "totalElements": 500}</pre></td>
+      <td>Tìm kiếm theo mã sinh viên, họ tên.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_16</b></td>
+      <td>ADMIN</td>
+      <td>Tạo sinh viên mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/students</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"userId": 2, "studentCode": "SV001", "fullName": "Nguyễn Văn A", "gender": "MALE", "dateOfBirth": "2005-05-15", "address": "...", "departmentId": 1}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "studentCode": "SV001", "fullName": "Nguyễn Văn A"}</pre></td>
+      <td>studentCode unique. userId và departmentId phải hợp lệ và tồn tại.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_17</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách giảng viên</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/teachers</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?page=0&amp;size=10</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 1, "teacherCode": "GV001", "fullName": "ThS. Trần Văn B"}], "totalElements": 80}</pre></td>
+      <td>Hỗ trợ tìm kiếm theo họ tên, mã giảng viên.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_18</b></td>
+      <td>ADMIN</td>
+      <td>Tạo giảng viên mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/teachers</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"userId": 5, "teacherCode": "GV001", "fullName": "Trần Văn B", "gender": "MALE", "departmentId": 1, "title": "ThS."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "teacherCode": "GV001", "fullName": "Trần Văn B"}</pre></td>
+      <td>teacherCode unique. userId và departmentId phải hợp lệ.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_19</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách lớp hành chính</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/classes</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?page=0&amp;size=10</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 1, "code": "K64-CNTT", "name": "Lớp K64 CNTT"}], "totalElements": 20}</pre></td>
+      <td>Hỗ trợ phân trang lớp.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_20</b></td>
+      <td>ADMIN</td>
+      <td>Tạo lớp hành chính</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/classes</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"code": "K64-CNTT", "name": "Lớp K64 CNTT", "departmentId": 1, "academicYearId": 1, "homeroomTeacherId": 1}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "code": "K64-CNTT"}</pre></td>
+      <td>Mã lớp (code) unique. Khoa và Giảng viên phải tồn tại.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_21</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách môn học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/subjects</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?page=0&amp;size=10</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 1, "code": "WEB101", "name": "Lập trình Web", "credits": 3}], "totalElements": 120}</pre></td>
+      <td>Hỗ trợ tìm kiếm môn theo mã, tên môn.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_22</b></td>
+      <td>ADMIN</td>
+      <td>Tạo môn học mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/subjects</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"code": "WEB101", "name": "Lập trình Web", "credits": 3, "departmentId": 1, "description": "..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 1, "code": "WEB101"}</pre></td>
+      <td>Mã môn unique. Tín chỉ (credits) phải >= 1.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_23</b></td>
+      <td>ADMIN</td>
+      <td>Danh sách lớp học phần</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/admin/class-sections</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Query: ?semesterId=1</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": [{"id": 101, "sectionCode": "LHP_WEB_01", "subjectName": "Lập trình Web"}], "totalElements": 40}</pre></td>
+      <td>Lọc lớp học phần theo kỳ học tương ứng.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_24</b></td>
+      <td>ADMIN</td>
+      <td>Mở lớp học phần mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/class-sections</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"classId": 1, "subjectId": 1, "teacherId": 1, "sectionCode": "LHP_WEB_01", "room": "402-A2", "weekday": 2, "startTime": "07:00:00", "endTime": "09:30:00", "startDate": "2026-01-10", "endDate": "2026-06-30", "capacity": 50, "semesterId": 1}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 101, "sectionCode": "LHP_WEB_01"}</pre></td>
+      <td>sectionCode unique. Giờ bắt đầu trước giờ kết thúc, không trùng phòng học.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="admin-row">
+      <td><b>API_AD_25</b></td>
+      <td>ADMIN</td>
+      <td>Đăng ký lớp học phần cho sinh viên</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/admin/enrollments</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"studentId": 1, "classSectionId": 101}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 501, "status": "ACTIVE"}</pre></td>
+      <td>Sĩ số không vượt quá capacity của lớp học phần. Không đăng ký trùng lặp.</td>
+      <td>ADMIN</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_01</b></td>
+      <td>TEACHER</td>
+      <td>Danh sách lớp học phần giảng dạy</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 101, "sectionCode": "LHP_WEB_01", "subjectName": "Lập trình Web", "room": "402-A2"}]</pre></td>
+      <td>Trả về các lớp học phần có teacher_id tương ứng với giảng viên đăng nhập.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_02</b></td>
+      <td>TEACHER</td>
+      <td>Danh sách sinh viên trong lớp học phần</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/students</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"studentId": 1, "studentCode": "SV001", "fullName": "Nguyễn Văn A"}]</pre></td>
+      <td>Lớp học phần classSectionId phải do giảng viên đang đăng nhập quản lý.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_03</b></td>
+      <td>TEACHER</td>
+      <td>Xem các phiên điểm danh của lớp</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/attendance-sessions</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 10, "sessionDate": "2026-07-22", "title": "Buổi học số 1", "status": "OPEN"}]</pre></td>
+      <td>Giảng viên chỉ xem được của lớp học phần mình đang dạy.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_04</b></td>
+      <td>TEACHER</td>
+      <td>Tạo phiên điểm danh mới</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/attendance-sessions</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"sessionDate": "2026-07-22", "title": "Buổi học 1"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 10, "title": "Buổi học 1", "status": "OPEN"}</pre></td>
+      <td>Mỗi ngày chỉ tạo được tối đa 1 phiên điểm danh/lớp học phần.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_05</b></td>
+      <td>TEACHER</td>
+      <td>Lấy bảng điểm danh chi tiết của buổi học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/attendance-sessions/{sessionId}/records</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"recordId": 201, "studentName": "Nguyễn Văn A", "status": "PRESENT"}]</pre></td>
+      <td>Phiên điểm danh sessionId phải thuộc lớp giảng viên dạy.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_06</b></td>
+      <td>TEACHER</td>
+      <td>Chấm điểm danh thủ công</td>
+      <td><span style="font-weight: bold; color: #b45309">PATCH</span></td>
+      <td><code>/api/teacher/attendance-records/{recordId}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"status": "PRESENT/LATE/ABSENT", "note": "string"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 201, "status": "PRESENT", "checkedAt": "2026-07-22T08:15:00Z"}</pre></td>
+      <td>Bản ghi phải tồn tại. Lọc quyền GV phụ trách.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_07</b></td>
+      <td>TEACHER</td>
+      <td>Danh sách học liệu đã đăng</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/materials</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 55, "title": "Chương 1", "fileName": "intro.pdf"}]</pre></td>
+      <td>Xem danh sách học liệu của lớp phần do mình dạy.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_08</b></td>
+      <td>TEACHER</td>
+      <td>Tải lên học liệu môn học</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/teacher/materials</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Multipart Form Data: file, title, classSectionId</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 55, "title": "Chương 1", "fileUrl": "http://..."}</pre></td>
+      <td>File tối đa 50MB. Chỉ nhận các đuôi file hỗ trợ pdf, ppt, doc, mp4.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_09</b></td>
+      <td>TEACHER</td>
+      <td>Xóa học liệu</td>
+      <td><span style="font-weight: bold; color: #b45309">DELETE</span></td>
+      <td><code>/api/teacher/materials/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true}</pre></td>
+      <td>Giảng viên chỉ xóa được tài liệu do chính mình đăng tải.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_10</b></td>
+      <td>TEACHER</td>
+      <td>Danh sách thông báo lớp học phần</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/announcements</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 33, "title": "Nghỉ học", "content": "..."}]</pre></td>
+      <td>Chỉ xem được thông báo lớp do mình dạy.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_11</b></td>
+      <td>TEACHER</td>
+      <td>Đăng thông báo mới cho lớp học</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/teacher/announcements</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"classSectionId": 101, "title": "Thông báo gấp", "content": "Nội dung..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 33, "title": "Thông báo gấp"}</pre></td>
+      <td>Tiêu đề và Nội dung không được để trống.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_12</b></td>
+      <td>TEACHER</td>
+      <td>Danh sách bài tập được giao của lớp</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/assignments</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 77, "title": "Bài tập lớn 1", "type": "essay"}]</pre></td>
+      <td>Xem bài tập của lớp do mình phụ trách.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_13</b></td>
+      <td>TEACHER</td>
+      <td>Tạo bài tập mới (Luận/Trắc nghiệm)</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/teacher/assignments</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"classSectionId": 101, "title": "Kiểm tra", "description": "...", "dueAt": "2026-07-29T23:59:00Z", "maxPoints": 10.00, "type": "essay/quiz"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 77, "title": "Kiểm tra", "type": "quiz"}</pre></td>
+      <td>Hạn nộp dueAt phải sau thời gian hiện tại.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_14</b></td>
+      <td>TEACHER</td>
+      <td>Cập nhật bài tập</td>
+      <td><span style="font-weight: bold; color: #b45309">PUT</span></td>
+      <td><code>/api/teacher/assignments/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"title": "...", "description": "...", "dueAt": "..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 77, "title": "..."}</pre></td>
+      <td>Chỉ chỉnh sửa được bài tập do chính mình tạo ra.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_15</b></td>
+      <td>TEACHER</td>
+      <td>Xóa bài tập</td>
+      <td><span style="font-weight: bold; color: #b45309">DELETE</span></td>
+      <td><code>/api/teacher/assignments/{id}</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true}</pre></td>
+      <td>Hệ thống sẽ tự động xóa tất cả các bài nộp (submissions) đi kèm khi xóa bài tập.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_16</b></td>
+      <td>TEACHER</td>
+      <td>Đính kèm đề trắc nghiệm & Lưu đáp án</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/teacher/assignments/{id}/configure-quiz</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Multipart: file, questionsJson: [{"order": 1, "correctChoice": "A", "points": 1.0}]</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true}</pre></td>
+      <td>Bài tập id phải tồn tại và có kiểu (type) là quiz.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_17</b></td>
+      <td>TEACHER</td>
+      <td>Xem danh sách bài nộp của lớp</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/assignments/{id}/submissions</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 801, "studentName": "Nguyễn Văn B", "submittedAt": "...", "status": "SUBMITTED"}]</pre></td>
+      <td>Lọc bài nộp của SV đăng ký lớp này.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_18</b></td>
+      <td>TEACHER</td>
+      <td>Chấm điểm & nhận xét bài tự luận của SV</td>
+      <td><span style="font-weight: bold; color: #b45309">PATCH</span></td>
+      <td><code>/api/teacher/submissions/{id}/grade</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"score": 9.5, "feedback": "Bài làm tốt"}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 801, "score": 9.5, "status": "GRADED"}</pre></td>
+      <td>Điểm score nằm trong khoảng 0 đến maxPoints của bài tập.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_19</b></td>
+      <td>TEACHER</td>
+      <td>Xem bảng điểm tổng kết lớp học phần</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/grades</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"studentId": 1, "studentName": "Nguyễn Văn A", "scores": {"col_1": 9.0}}]</pre></td>
+      <td>Trả về bảng điểm tổng kết của lớp học phần.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="teacher-row">
+      <td><b>API_TC_20</b></td>
+      <td>TEACHER</td>
+      <td>Thiết lập thành phần điểm và trọng số</td>
+      <td><span style="font-weight: bold; color: #b45309">PUT</span></td>
+      <td><code>/api/teacher/classes/{classSectionId}/grade-components</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"name": "Chuyên cần", "weightPercent": 10}, {"name": "Giữa kỳ", "weightPercent": 30}]</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true}</pre></td>
+      <td>Tổng trọng số tất cả các thành phần phải bằng 100%.</td>
+      <td>TEACHER</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_01</b></td>
+      <td>STUDENT</td>
+      <td>Danh sách lớp học phần đang đăng ký</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/classes</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 101, "subjectName": "Lập trình Web", "teacherName": "Nguyễn Văn A"}]</pre></td>
+      <td>Chỉ lọc ra các lớp học phần sinh viên này thực tế có tên trong học phần đăng ký.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_02</b></td>
+      <td>STUDENT</td>
+      <td>Tải & Xem tài liệu học liệu môn học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/classes/{id}/materials</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 55, "title": "Bài giảng 1", "fileName": "slide-01.pdf"}]</pre></td>
+      <td>Sinh viên phải là thành viên lớp mới được xem tài liệu.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_03</b></td>
+      <td>STUDENT</td>
+      <td>Danh sách thông báo của môn học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/classes/{id}/announcements</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 33, "title": "Nghỉ học", "content": "..."}]</pre></td>
+      <td>Lọc thông báo theo lớp.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_04</b></td>
+      <td>STUDENT</td>
+      <td>Danh sách bài tập được giao của môn</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/classes/{id}/assignments</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": 77, "title": "Bài tập lớn", "dueDate": "..."}]</pre></td>
+      <td>Lọc bài tập theo lớp học phần.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_05</b></td>
+      <td>STUDENT</td>
+      <td>Lấy danh sách câu hỏi trắc nghiệm (Làm bài)</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/assignments/{id}/questions</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"id": "q1", "order": 1, "questionText": "...", "choiceAText": "A", "choiceBText": "B"}]</pre></td>
+      <td>Ẩn cột correctChoice và explanation để chống gian lận.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_06</b></td>
+      <td>STUDENT</td>
+      <td>Nộp bài thi trắc nghiệm trực tuyến</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/student/assignments/{id}/submit-quiz</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"answers": [{"questionId": "q1", "selectedChoice": "A"}]}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"submissionId": 805, "score": 8.0, "feedback": "Đúng 4/5 câu", "status": "graded"}</pre></td>
+      <td>Mỗi bài trắc nghiệm chỉ được nộp duy nhất 1 lần. Backend tự động đối chiếu chấm điểm.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_07</b></td>
+      <td>STUDENT</td>
+      <td>Nộp lời giải bài tập tự luận</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/student/assignments/{id}/submit-essay</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"content": "Lời giải...", "fileUrl": "..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"id": 806, "status": "SUBMITTED"}</pre></td>
+      <td>Cho phép sinh viên nộp đè nhiều lần trước hạn dueAt.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_08</b></td>
+      <td>STUDENT</td>
+      <td>Điểm danh sinh trắc học Face ID & GPS</td>
+      <td><span style="font-weight: bold; color: #1d4ed8">POST</span></td>
+      <td><code>/api/student/attendance/sessions/{id}/check-in</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"method": "gps/face", "latitude": 20.978, "longitude": 105.789, "faceImageBase64": "..."}</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"success": true, "status": "PRESENT"}</pre></td>
+      <td>GPS sai lệch < 100m so với tọa độ lớp học. Ảnh so khớp khuôn mặt khớp > 85%. Phiên điểm danh đang trạng thái OPEN.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_09</b></td>
+      <td>STUDENT</td>
+      <td>Xem lịch sử chuyên cần cá nhân</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/classes/{id}/attendance-history</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">[{"sessionTitle": "Buổi 1", "status": "PRESENT", "checkedAt": "2026-07-22"}]</pre></td>
+      <td>Chỉ xem được lịch sử của chính bản thân sinh viên đăng nhập.</td>
+      <td>STUDENT</td>
+    </tr>
+    <tr class="student-row">
+      <td><b>API_ST_10</b></td>
+      <td>STUDENT</td>
+      <td>Xem bảng điểm thành phần cá nhân môn học</td>
+      <td><span style="font-weight: bold; color: #047857">GET</span></td>
+      <td><code>/api/student/classes/{id}/grades</code></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">Headers: Authorization</pre></td>
+      <td><pre style="margin: 0; font-family: Consolas, monospace; font-size: 10px;">{"components": [{"name": "Chuyên cần", "weight": 10, "score": 10}], "finalScore": 9.0}</pre></td>
+      <td>Chỉ trả về điểm của bản thân sinh viên.</td>
+      <td>STUDENT</td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>

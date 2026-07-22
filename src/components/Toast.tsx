@@ -6,7 +6,7 @@
 import React, { useEffect } from 'react';
 import { CheckCircle2, AlertCircle, X, Info } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'danger' | 'info';
 
 export interface ToastProps {
   message: string;
@@ -37,7 +37,7 @@ export const Toast: React.FC<ToastProps> = ({
           text: 'text-emerald-800',
           icon: <CheckCircle2 className="h-5 w-5 text-emerald-550 text-emerald-600" />,
         };
-      case 'error':
+      case 'danger':
         return {
           bg: 'bg-rose-50 border-rose-100',
           text: 'text-rose-800',

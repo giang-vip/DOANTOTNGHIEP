@@ -42,7 +42,7 @@ export function useHomeworkViewModel(studentProfile: Student) {
   const handleSubmitHomework = (onSuccess: (msg: string) => void) => {
     if (!activeHomework) return;
 
-    const isQuiz = (activeHomework as any).type === 'tracnghiem';
+    const isQuiz = activeHomework.type === 'quiz';
     
     if (isQuiz) {
       // Validate all answers are selected

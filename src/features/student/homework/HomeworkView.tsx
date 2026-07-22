@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useHomeworkViewModel } from './useHomeworkViewModel';
 import { Card, Table, Badge, FormInput, FileUploader, Modal } from '../../../components/UI';
 import { ExamReviewView } from '../../../components/ExamReviewView';
+import { QuizTakingView } from '../study/QuizTakingView';
+import { QuizReviewPanel } from '../../../components/QuizReviewPanel';
+import { useStore } from '../../../models/store';
+import { useStudentViewModel } from '../../../viewmodels/useStudentViewModel';
 import { Student, Assignment } from '../../../types';
 import { FileEdit, BookOpen, AlertCircle, CheckCircle2, Award, Clock, ArrowLeft, Upload, FileCheck, FileQuestion, ChevronDown } from 'lucide-react';
 
@@ -31,6 +35,9 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
   const [viewSubmission, setViewSubmission] = useState<any | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
 
+  const { quizQuestions, quizAnswers: allQuizAnswers } = useStore();
+  const { submitQuizAnswers: submitQuizAnswersToStore } = useStudentViewModel(studentProfile.id);
+
   const filteredHomeworks = selectedClassId === 'all'
     ? homeworks
     : homeworks.filter(h => h.classId === selectedClassId);
@@ -47,7 +54,7 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
     {
       header: 'Tiêu Đề Bài Tập',
       accessor: (asm: Assignment) => {
-        const isQuiz = (asm as any).type === 'tracnghiem';
+        const isQuiz = asm.type === 'quiz';
         return (
           <div className="space-y-1">
             <span className="font-semibold text-slate-800">{asm.title}</span>
@@ -99,7 +106,7 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
           );
         }
 
-        const isQuiz = (asm as any).type === 'tracnghiem';
+        const isQuiz = asm.type === 'quiz';
         return (
           <button
             onClick={() => setViewSubmission({ asm, sub })}
@@ -116,7 +123,18 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
   return (
     <div className="space-y-6">
       {/* Detail Workspace Pane (Single Screen Toggle) */}
-      {activeHomework ? (
+      {activeHomework && activeHomework.type === 'quiz' ? (
+        <QuizTakingView
+          assignment={activeHomework}
+          questions={quizQuestions.filter(q => q.assignmentId === activeHomework.id)}
+          onSubmit={(userAnswers) => {
+            submitQuizAnswersToStore(activeHomework.id, activeHomework.classId, userAnswers);
+            triggerToast('Nộp bài trắc nghiệm thành công!', 'success');
+            setActiveHomework(null);
+          }}
+          onCancel={() => setActiveHomework(null)}
+        />
+      ) : activeHomework ? (
         <div className="space-y-6">
           {/* Back Action Bar */}
           <button
@@ -150,7 +168,7 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
             </div>
 
             {/* Render conditional homework questions input */}
-            {(activeHomework as any).type === 'tracnghiem' ? (
+            {activeHomework.type === 'quiz' ? (
               <div className="space-y-5">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
                   <FileQuestion className="h-4.5 w-4.5 text-blue-600" /> Câu hỏi trắc nghiệm kiểm tra
@@ -298,10 +316,13 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
       )}
 
       {/* View Result Popup */}
-      {viewSubmission && (viewSubmission.asm as any).type === 'tracnghiem' ? (
-        <ExamReviewView
+      {viewSubmission && viewSubmission.asm.type === 'quiz' ? (
+        <QuizReviewPanel
+          mode="result"
           assignment={viewSubmission.asm}
-          submission={viewSubmission.sub}
+          questions={quizQuestions.filter(q => q.assignmentId === viewSubmission.asm.id)}
+          answers={allQuizAnswers.filter(a => a.submissionId === viewSubmission.sub.id)}
+          totalScore={viewSubmission.sub.score || 0}
           onClose={() => setViewSubmission(null)}
         />
       ) : viewSubmission ? (

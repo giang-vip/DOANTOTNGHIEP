@@ -75,8 +75,8 @@ export interface ClassSection {
   studentIds: string[]; // MSSVs in class
   startDate: string; // e.g. "YYYY-MM-DD"
   endDate: string; // e.g. "YYYY-MM-DD"
-  periodStart: number;
-  periodEnd: number;
+  periodStart?: number;
+  periodEnd?: number;
 }
 
 export interface RegistrationPeriod {
@@ -105,13 +105,16 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   noted?: string;
   updatedAt: string;
+  method?: 'manual' | 'gps' | 'face';
+  faceMatchConfidence?: number;
+  faceMatchStatus?: 'not_applicable' | 'pending' | 'matched' | 'not_matched';
 }
 
 export interface LearningMaterial {
   id: string;
   classId: string;
   title: string;
-  type: 'pdf' | 'doc' | 'ppt' | 'video';
+  type: 'pdf' | 'doc' | 'ppt' | 'video' | 'image';
   url: string;
   fileName: string;
   fileSize: string;
@@ -119,14 +122,73 @@ export interface LearningMaterial {
   description?: string;
 }
 
+/**
+ * Bài tập trong hệ thống. Bản prototype giữ nguyên luồng tự luận cũ
+ * và mở rộng thêm loại trắc nghiệm theo mô hình 1 file đề chung.
+ * Dữ liệu này tương ứng với bảng assignments trong CSDL thật.
+ */
 export interface Assignment {
   id: string;
   classId: string;
   title: string;
   description: string;
   dueDate: string; // YYYY-MM-DDTHH:mm
-  maxPoints: number;
+  maxPoints: number; // với type='quiz': LUÔN là 10 (thang điểm cố định)
   createdAt: string;
+
+  /** Loại bài tập. Nếu không set thì mặc định coi như essay để giữ hành vi cũ. */
+  type?: 'essay' | 'quiz';
+
+  /** Đường dẫn file đề gốc do GV upload, dùng cho bài quiz 1 file chung. */
+  examFileUrl?: string;
+  /** Tên file đề gốc để hiển thị ở UI và lưu log. */
+  examFileName?: string;
+  /** Loại file đề, quyết định dùng PDF viewer hay ảnh viewer ở FE. */
+  examFileType?: 'pdf' | 'image';
+  /** Tổng số câu hỏi do GV nhập khi soạn đề, dùng để tạo khung câu hỏi. */
+  questionCount?: number;
+}
+
+/**
+ * Một câu hỏi trong đề quiz. Vì đề nằm chung trong 1 file examFileUrl ở Assignment,
+ * bảng này chỉ lưu đáp án đúng, điểm câu, giải thích lý thuyết và các text tuỳ chọn.
+ * Dữ liệu này tương ứng với bảng quiz_questions trong CSDL thật.
+ */
+export interface QuizQuestion {
+  id: string;
+  assignmentId: string;
+  /** Thứ tự câu hỏi trong đề, dùng để hiển thị Câu 1, Câu 2... trên FE. */
+  order: number;
+  /** Đáp án đúng do GV tick khi soạn đề, dùng để tự động chấm bài. */
+  correctChoice: 'A' | 'B' | 'C' | 'D';
+  /** Điểm của riêng câu hỏi, thường được tính tự động = maxPoints / questionCount. */
+  points: number;
+  /** Giải thích lý thuyết của GV, hiện ở màn xem lại cho sinh viên. */
+  explanationText?: string;
+  /** Nội dung câu hỏi dạng text tuỳ chọn, có thể do GV nhập hoặc OCR tự trích sau này. */
+  questionText?: string;
+  choiceAText?: string;
+  choiceBText?: string;
+  choiceCText?: string;
+  choiceDText?: string;
+  /** Trạng thái xử lý OCR, mặc định mới là not_processed. */
+  ocrStatus?: 'not_processed' | 'pending' | 'done' | 'failed';
+  /** Văn bản OCR trích xuất từ file đề trong tương lai. */
+  ocrExtractedText?: string;
+}
+
+/**
+ * Câu trả lời của sinh viên cho một câu hỏi trong một lượt nộp bài trắc nghiệm.
+ * Dữ liệu này tương ứng với bảng quiz_answers trong CSDL thật.
+ */
+export interface QuizAnswer {
+  id: string;
+  submissionId: string;
+  questionId: string;
+  /** null nghĩa sinh viên bỏ trống câu này khi nộp bài. */
+  selectedChoice: 'A' | 'B' | 'C' | 'D' | null;
+  /** Hệ thống tự tính từ đáp án đúng của câu hỏi và lựa chọn của sinh viên. */
+  isCorrect: boolean;
 }
 
 export interface Submission {
@@ -142,6 +204,21 @@ export interface Submission {
   score?: number;
   feedback?: string;
   status: 'submitted' | 'graded';
+}
+
+export interface GradeComponent {
+  id: string;
+  classId: string;
+  name: string; // GV tự đặt tên, không giới hạn 3 cái cố định
+  weightPercent: number;
+  order: number;
+}
+
+export interface GradeComponentScore {
+  id: string;
+  enrollmentId: string;
+  componentId: string;
+  score: number;
 }
 
 export interface GradeRecord {

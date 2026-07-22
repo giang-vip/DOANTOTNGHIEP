@@ -110,7 +110,7 @@ export function useStudyViewModel(studentProfile: Student) {
   const handleHomeworkSubmit = (triggerToast: (msg: string, type: 'success' | 'danger') => void) => {
     if (!selectedAssignment) return;
 
-    const isQuiz = (selectedAssignment as any).type === 'tracnghiem';
+    const isQuiz = selectedAssignment.type === 'quiz';
     let content = '';
 
     if (isQuiz) {
@@ -132,6 +132,7 @@ export function useStudyViewModel(studentProfile: Student) {
     // Submit payload
     addSubmission({
       assignmentId: selectedAssignment.id,
+      classId: selectedAssignment.classId,
       studentId: studentProfile.id,
       studentName: studentProfile.name,
       content,

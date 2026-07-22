@@ -89,8 +89,6 @@ Tài liệu này thiết kế database theo chuẩn 3NF (Third Normal Form), ph�
 - status: varchar(20)
 - created_at: timestamp
 
-> Trạng thái của sinh viên được admin quản lý trực tiếp qua trường status với các giá trị: active, on_leave, dropped_out, graduated. Thao tác xóa trong giao diện admin được triển khai dưới dạng soft delete bằng cách chuyển sang trạng thái on_leave.
-
 #### teachers
 - id: bigint PK
 - user_id: bigint FK -> users.id unique
@@ -101,8 +99,6 @@ Tài liệu này thiết kế database theo chuẩn 3NF (Third Normal Form), ph�
 - title: varchar(100)
 - status: varchar(20)
 - created_at: timestamp
-
-> Trạng thái của giảng viên cũng được admin đổi trực tiếp qua trường status với các giá trị: active, on_leave. Khi cần xóa, hệ thống giữ bản ghi nhưng chuyển sang trạng thái on_leave để bảo toàn dữ liệu liên quan.
 
 ### 3.5. Lớp học và môn học
 
@@ -180,8 +176,28 @@ Tài liệu này thiết kế database theo chuẩn 3NF (Third Normal Form), ph�
 - description: text
 - due_at: timestamp
 - max_points: decimal(5,2)
+- type: enum('essay', 'quiz')
+- exam_file_url: varchar(500)
+- exam_file_name: varchar(255)
+- exam_file_type: enum('pdf', 'image')
+- question_count: int
 - created_by: bigint FK -> users.id
 - created_at: timestamp
+
+#### quiz_questions
+- id: bigint PK
+- assignment_id: bigint FK -> assignments.id
+- order_index: int
+- correct_choice: enum('A', 'B', 'C', 'D')
+- points: decimal(5,2)
+- explanation_text: text
+- question_text: text
+- choice_a_text: varchar(500)
+- choice_b_text: varchar(500)
+- choice_c_text: varchar(500)
+- choice_d_text: varchar(500)
+- ocr_status: varchar(20)
+- ocr_extracted_text: text
 
 #### submissions
 - id: bigint PK
@@ -194,6 +210,14 @@ Tài liệu này thiết kế database theo chuẩn 3NF (Third Normal Form), ph�
 - feedback: text
 - status: varchar(20)
 - unique(assignment_id, enrollment_id)
+
+#### quiz_answers
+- id: bigint PK
+- submission_id: bigint FK -> submissions.id
+- question_id: bigint FK -> quiz_questions.id
+- selected_choice: enum('A', 'B', 'C', 'D')
+- is_correct: boolean
+- unique(submission_id, question_id)
 
 #### grades
 - id: bigint PK
@@ -294,7 +318,9 @@ Tài liệu này thiết kế database theo chuẩn 3NF (Third Normal Form), ph�
 - AttendanceSessionEntity
 - AttendanceRecordEntity
 - AssignmentEntity
+- QuizQuestionEntity
 - SubmissionEntity
+- QuizAnswerEntity
 - GradeEntity
 - LearningMaterialEntity
 - AnnouncementEntity

@@ -3,6 +3,8 @@ import { useAssignmentsViewModel } from './useAssignmentsViewModel';
 import { Card, Table, Modal, FormInput, Badge } from '../../../components/UI';
 import { ExamReviewView } from '../../../components/ExamReviewView';
 import { Award, Search, Plus, Trash2, Calendar, FileText, CheckCircle2, UserCheck, Play, ChevronRight, X, Sparkles } from 'lucide-react';
+import { QuizExamBuilderView } from './QuizExamBuilderView';
+import { useStore } from '../../../models/store';
 
 interface AssignmentsViewProps {
   teacherId: string;
@@ -31,8 +33,8 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
     setMaxPoints,
     asmType,
     setAsmType,
-    correctAnswers,
-    setCorrectAnswers,
+    questionCount,
+    setQuestionCount,
     errors,
     createAssignment,
     deleteAssignment,
@@ -53,8 +55,11 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
     submitTestSolve
   } = useAssignmentsViewModel(teacherId);
 
+  const { updateAssignment, quizQuestions, setQuizQuestionsForAssignment } = useStore();
+
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [reviewSubmission, setReviewSubmission] = React.useState<any | null>(null);
+  const [isQuizManagerOpen, setIsQuizManagerOpen] = React.useState(false);
 
   const handleCreateAction = () => {
     createAssignment((msg) => triggerToast(msg, 'success'));
@@ -101,7 +106,7 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
       header: 'Thao Tác',
       accessor: (s: any) => (
         <div className="flex gap-1.5 justify-end">
-          {selectedAssignment && (selectedAssignment as any).type === 'tracnghiem' && (
+          {selectedAssignment && (selectedAssignment as any).type === 'quiz' && (
             <button
               type="button"
               onClick={() => setReviewSubmission(s)}
@@ -178,16 +183,15 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
               ) : (
                 assignments.map((asm) => {
                   const isSelected = selectedAssignment?.id === asm.id;
-                  const isQuiz = (asm as any).type === 'tracnghiem';
+                  const isQuiz = (asm as any).type === 'quiz' || (asm as any).type === 'tracnghiem';
                   return (
                     <button
                       key={asm.id}
                       onClick={() => setSelectedAssignment(asm)}
-                      className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 shadow-xs ${
-                        isSelected
-                          ? 'bg-slate-900 border-slate-950 text-white'
-                          : 'bg-white border-slate-150 text-slate-800 hover:bg-slate-50'
-                      }`}
+                      className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 shadow-xs ${isSelected
+                        ? 'bg-slate-900 border-slate-950 text-white'
+                        : 'bg-white border-slate-150 text-slate-800 hover:bg-slate-50'
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <Badge variant={isQuiz ? 'info' : 'gray'}>
@@ -236,7 +240,7 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                   {(selectedAssignment as any).type === 'tracnghiem' ? (
                     <div className="space-y-4 pt-2">
                       <p className="text-xs font-bold text-slate-700">Bộ câu hỏi kiểm tra:</p>
-                      
+
                       {/* Questions loop */}
                       {[1, 2, 3, 4].map((qNum) => (
                         <div key={qNum} className="p-3 bg-white border border-slate-150 rounded-lg space-y-2">
@@ -248,11 +252,10 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                                 <button
                                   key={ans}
                                   onClick={() => setTestAnswers(prev => ({ ...prev, [qNum]: ans }))}
-                                  className={`py-1.5 px-3 rounded-lg border text-xs font-bold capitalize transition-all cursor-pointer ${
-                                    isChecked
-                                      ? 'bg-blue-600 border-blue-600 text-white'
-                                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                                  }`}
+                                  className={`py-1.5 px-3 rounded-lg border text-xs font-bold capitalize transition-all cursor-pointer ${isChecked
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                                    }`}
                                 >
                                   Đáp án {ans}
                                 </button>
@@ -315,12 +318,21 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
 
                   {/* Actions buttons */}
                   <div className="flex gap-2">
-                    <button
-                      onClick={startTestSolve}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
-                    >
-                      <Play className="h-3.5 w-3.5" /> Giải thử bài tập
-                    </button>
+                    {selectedAssignment && ((selectedAssignment as any).type === 'quiz' || (selectedAssignment as any).type === 'tracnghiem') ? (
+                      <button
+                        onClick={() => setIsQuizManagerOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-100 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        <FileText className="h-3.5 w-3.5" /> Quản lý câu hỏi ảnh
+                      </button>
+                    ) : (
+                      <button
+                        onClick={startTestSolve}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+                      >
+                        <Play className="h-3.5 w-3.5" /> Giải thử bài tập
+                      </button>
+                    )}
                     <button
                       onClick={() => deleteAssignment(selectedAssignment.id, selectedAssignment.title, (msg) => triggerToast(msg, 'success'))}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors"
@@ -396,7 +408,7 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
           {/* Left Column: Soạn thảo đề bài / câu hỏi */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide border-b pb-1">Cột trái: Nội dung & Câu hỏi</h4>
-            
+
             <FormInput
               label="Tiêu đề bài tập"
               value={title}
@@ -434,9 +446,8 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                 onChange={(e) => setDescription(e.target.value)}
                 rows={6}
                 placeholder="Nhập yêu cầu làm bài, câu hỏi chi tiết..."
-                className={`w-full px-3.5 py-2 rounded-lg border text-xs focus:outline bg-white text-slate-750 ${
-                  errors.description ? 'border-rose-300' : 'border-slate-200'
-                }`}
+                className={`w-full px-3.5 py-2 rounded-lg border text-xs focus:outline bg-white text-slate-750 ${errors.description ? 'border-rose-300' : 'border-slate-200'
+                  }`}
               />
               {errors.description && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.description}</p>}
             </div>
@@ -445,7 +456,7 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
           {/* Right Column: Tài liệu đính kèm & Ma trận Rubric */}
           <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
             <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide border-b pb-1">Cột phải: Đính kèm & Tiêu chí Rubric</h4>
-            
+
             <FormInput
               label="Thang điểm tối đa"
               type="number"
@@ -455,17 +466,17 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
               max={100}
             />
 
-            {asmType === 'tracnghiem' ? (
+            {asmType === 'quiz' ? (
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Đáp án đúng (Nhập nhanh)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Số lượng câu hỏi</label>
                 <input
-                  type="text"
-                  value={correctAnswers}
-                  onChange={(e) => setCorrectAnswers(e.target.value)}
-                  placeholder="Ví dụ: 1-a,2-c,3-b,4-d..."
+                  type="number"
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(parseInt(e.target.value) || 4)}
+                  min={1}
                   className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline bg-white text-slate-750 font-mono"
                 />
-                <p className="mt-1.5 text-[10px] text-slate-400">Định dạng phân tách bằng dấu phẩy: `Câu-Đáp án`. Ví dụ: `1-a,2-c,3-b` (Viết thường)</p>
+                <p className="mt-1.5 text-[10px] text-slate-400">Sau khi tạo, bạn có thể cấu hình file đề và đáp án chi tiết.</p>
               </div>
             ) : (
               <div>
@@ -535,14 +546,14 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                 </div>
               </div>
 
-              {asmType === 'tracnghiem' ? (
+              {asmType === 'quiz' ? (
                 <div className="space-y-3 pt-2">
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Phần bài làm trắc nghiệm</h4>
                   <div className="space-y-2 text-xs text-slate-600">
-                    <p className="italic text-slate-400">Sinh viên sẽ đánh dấu câu trả lời tương ứng với các đáp án đúng của bạn.</p>
+                    <p className="italic text-slate-400">Sinh viên sẽ làm bài trực tuyến với bộ câu hỏi cấu hình.</p>
                     <div className="p-3 bg-blue-50/20 border border-blue-100 rounded-lg space-y-2 font-mono">
-                      <p className="font-bold text-blue-800">Cấu hình tự động chấm của bạn:</p>
-                      <p>{correctAnswers || 'Chưa nhập đáp án'}</p>
+                      <p className="font-bold text-blue-800">Cấu hình tự động chấm:</p>
+                      <p>Số câu hỏi: {selectedAssignment ? (quizQuestions.filter(q => q.assignmentId === selectedAssignment.id).length || selectedAssignment.questionCount || 4) : 4} câu</p>
                     </div>
                   </div>
                 </div>
@@ -636,6 +647,20 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
             id: reviewSubmission.studentId
           }}
           onClose={() => setReviewSubmission(null)}
+        />
+      )}
+
+      {isQuizManagerOpen && selectedAssignment && (
+        <QuizExamBuilderView
+          teacherId={teacherId}
+          assignment={selectedAssignment}
+          existingQuestions={quizQuestions.filter(q => q.assignmentId === selectedAssignment.id)}
+          onSave={(assignmentUpdates, newQuestions) => {
+            updateAssignment(selectedAssignment.id, assignmentUpdates);
+            setQuizQuestionsForAssignment(selectedAssignment.id, newQuestions);
+          }}
+          onClose={() => setIsQuizManagerOpen(false)}
+          triggerToast={triggerToast}
         />
       )}
     </div>

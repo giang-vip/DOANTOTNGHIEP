@@ -16,6 +16,8 @@ import {
   AttendanceRecord,
   LearningMaterial,
   Assignment,
+  QuizQuestion,
+  QuizAnswer,
   Submission,
   GradeRecord,
   SystemNotification
@@ -54,6 +56,8 @@ interface StoreContextType {
   attendanceRecords: AttendanceRecord[];
   materials: LearningMaterial[];
   assignments: Assignment[];
+  quizQuestions: QuizQuestion[];
+  quizAnswers: QuizAnswer[];
   submissions: Submission[];
   grades: GradeRecord[];
   notifications: SystemNotification[];
@@ -107,6 +111,13 @@ interface StoreContextType {
   updateAssignment: (id: string, updates: Partial<Assignment>) => void;
   deleteAssignment: (id: string) => void;
 
+  // Quiz Actions
+  addQuizQuestion: (question: Omit<QuizQuestion, 'id'>) => QuizQuestion;
+  updateQuizQuestion: (id: string, updates: Partial<QuizQuestion>) => void;
+  deleteQuizQuestion: (id: string) => void;
+  setQuizQuestionsForAssignment: (assignmentId: string, questions: QuizQuestion[]) => void;
+  saveQuizAnswers: (submissionId: string, answers: { questionId: string; selectedChoice: 'A' | 'B' | 'C' | 'D' | null }[]) => QuizAnswer[];
+
   // Submission Actions
   addSubmission: (submission: Omit<Submission, 'id' | 'submittedAt' | 'status'>) => void;
   gradeSubmission: (id: string, score: number, feedback: string) => void;
@@ -133,6 +144,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizAnswers, setQuizAnswers] = useState<QuizAnswer[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [grades, setGrades] = useState<GradeRecord[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
@@ -153,6 +166,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('hn_attendance_records', JSON.stringify(INITIAL_ATTENDANCE_RECORDS));
       localStorage.setItem('hn_materials', JSON.stringify(INITIAL_MATERIALS));
       localStorage.setItem('hn_assignments', JSON.stringify(INITIAL_ASSIGNMENTS));
+      localStorage.setItem('hn_quiz_questions', JSON.stringify([]));
+      localStorage.setItem('hn_quiz_answers', JSON.stringify([]));
       localStorage.setItem('hn_submissions', JSON.stringify(INITIAL_SUBMISSIONS));
       localStorage.setItem('hn_grades', JSON.stringify(INITIAL_GRADES));
       localStorage.setItem('hn_notifications', JSON.stringify(INITIAL_NOTIFICATIONS));
@@ -169,6 +184,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setAttendanceRecords(INITIAL_ATTENDANCE_RECORDS);
       setMaterials(INITIAL_MATERIALS);
       setAssignments(INITIAL_ASSIGNMENTS);
+      setQuizQuestions([]);
+      setQuizAnswers([]);
       setSubmissions(INITIAL_SUBMISSIONS);
       setGrades(INITIAL_GRADES);
       setNotifications(INITIAL_NOTIFICATIONS);
@@ -184,6 +201,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setAttendanceRecords(JSON.parse(localStorage.getItem('hn_attendance_records') || '[]'));
       setMaterials(JSON.parse(localStorage.getItem('hn_materials') || '[]'));
       setAssignments(JSON.parse(localStorage.getItem('hn_assignments') || '[]'));
+      setQuizQuestions(JSON.parse(localStorage.getItem('hn_quiz_questions') || '[]'));
+      setQuizAnswers(JSON.parse(localStorage.getItem('hn_quiz_answers') || '[]'));
       setSubmissions(JSON.parse(localStorage.getItem('hn_submissions') || '[]'));
       setGrades(JSON.parse(localStorage.getItem('hn_grades') || '[]'));
       setNotifications(JSON.parse(localStorage.getItem('hn_notifications') || '[]'));
@@ -504,6 +523,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addAssignment = (asmData: Omit<Assignment, 'id' | 'createdAt'>) => {
     const newAsm: Assignment = {
       ...asmData,
+      type: asmData.type ?? 'essay',
       id: `ASM_${Math.floor(100 + Math.random() * 900)}`,
       createdAt: new Date().toISOString()
     };
@@ -519,6 +539,84 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteAssignment = (id: string) => {
     const updated = assignments.filter(a => a.id !== id);
     saveAndSet('hn_assignments', updated, setAssignments);
+  };
+
+  // Quiz Actions
+  const addQuizQuestion = (questionData: Omit<QuizQuestion, 'id'>) => {
+    const newQuestion: QuizQuestion = {
+      ...questionData,
+      id: `QZ_${Math.floor(100 + Math.random() * 900)}`,
+      ocrStatus: questionData.ocrStatus ?? 'not_processed'
+    };
+    const updated = [...quizQuestions, newQuestion];
+    saveAndSet('hn_quiz_questions', updated, setQuizQuestions);
+    return newQuestion;
+  };
+
+  const updateQuizQuestion = (id: string, updates: Partial<QuizQuestion>) => {
+    const updated = quizQuestions.map(q => (q.id === id ? { ...q, ...updates } : q));
+    saveAndSet('hn_quiz_questions', updated, setQuizQuestions);
+  };
+
+  const deleteQuizQuestion = (id: string) => {
+    const updated = quizQuestions.filter(q => q.id !== id);
+    saveAndSet('hn_quiz_questions', updated, setQuizQuestions);
+  };
+
+  /** Thay thế toàn bộ câu hỏi trắc nghiệm của một bài tập bằng danh sách mới */
+  const setQuizQuestionsForAssignment = (assignmentId: string, newQuestions: QuizQuestion[]) => {
+    const filtered = quizQuestions.filter(q => q.assignmentId !== assignmentId);
+    const updated = [...filtered, ...newQuestions];
+    saveAndSet('hn_quiz_questions', updated, setQuizQuestions);
+  };
+
+  const saveQuizAnswers = (submissionId: string, answers: { questionId: string; selectedChoice: 'A' | 'B' | 'C' | 'D' | null }[]) => {
+    const submission = submissions.find(s => s.id === submissionId);
+    const questionMap = new Map(quizQuestions.map(q => [q.id, q]));
+    const createdAnswers: QuizAnswer[] = answers.map(answer => {
+      const question = questionMap.get(answer.questionId);
+      const isCorrect = !!question && answer.selectedChoice !== null && answer.selectedChoice === question.correctChoice;
+      return {
+        id: `QA_${Math.floor(100 + Math.random() * 900)}`,
+        submissionId,
+        questionId: answer.questionId,
+        selectedChoice: answer.selectedChoice,
+        isCorrect
+      };
+    });
+
+    const updatedAnswers = [...quizAnswers.filter(a => a.submissionId !== submissionId), ...createdAnswers];
+    saveAndSet('hn_quiz_answers', updatedAnswers, setQuizAnswers);
+
+    if (submission) {
+      const assignment = assignments.find(a => a.id === submission.assignmentId);
+      const totalQuestions = createdAnswers.length;
+      const correctCount = createdAnswers.filter(a => a.isCorrect).length;
+      const maxPoints = assignment?.maxPoints ?? 10;
+      const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * maxPoints * 10) / 10 : 0;
+
+      const updatedSubmissions = submissions.map(s => {
+        if (s.id === submissionId) {
+          return {
+            ...s,
+            score,
+            feedback: `Tự động chấm trắc nghiệm: đúng ${correctCount}/${totalQuestions} câu.`,
+            status: 'graded' as const
+          };
+        }
+        return s;
+      });
+      saveAndSet('hn_submissions', updatedSubmissions, setSubmissions);
+
+      const gradeId = `${submission.classId}_${submission.studentId}`;
+      const existingGrade = grades.find(g => g.id === gradeId);
+      const nextGrades = existingGrade
+        ? grades.map(g => (g.id === gradeId ? { ...g, progressScore: score, scores: { ...(g.scores || {}), quiz_score: score } } : g))
+        : [...grades, { id: gradeId, classId: submission.classId, studentId: submission.studentId, studentName: submission.studentName, progressScore: score, scores: { quiz_score: score } }];
+      saveAndSet('hn_grades', nextGrades, setGrades);
+    }
+
+    return createdAnswers;
   };
 
   // Submission Actions
@@ -625,6 +723,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         attendanceRecords,
         materials,
         assignments,
+        quizQuestions,
+        quizAnswers,
         submissions,
         grades,
         notifications,
@@ -667,6 +767,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addAssignment,
         updateAssignment,
         deleteAssignment,
+
+        addQuizQuestion,
+        updateQuizQuestion,
+        deleteQuizQuestion,
+        setQuizQuestionsForAssignment,
+        saveQuizAnswers,
 
         addSubmission,
         gradeSubmission,

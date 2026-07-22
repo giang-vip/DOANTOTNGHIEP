@@ -25,8 +25,11 @@ export function useAssignmentsViewModel(teacherId: string) {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [maxPoints, setMaxPoints] = useState(10);
-  const [asmType, setAsmType] = useState<'tracnghiem' | 'tuluan'>('tracnghiem');
-  const [correctAnswers, setCorrectAnswers] = useState('1-a,2-b,3-d,4-c');
+  const [asmType, setAsmType] = useState<'quiz' | 'essay'>('quiz');
+  const [examFileUrl, setExamFileUrl] = useState('');
+  const [examFileName, setExamFileName] = useState('');
+  const [examFileType, setExamFileType] = useState<'pdf' | 'image'>('pdf');
+  const [questionCount, setQuestionCount] = useState(4);
 
   // Grading states
   const [activeSubmission, setActiveSubmission] = useState<Submission | null>(null);
@@ -70,8 +73,11 @@ export function useAssignmentsViewModel(teacherId: string) {
     setDescription('');
     setDueDate(new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 16)); // 1 week later
     setMaxPoints(10);
-    setAsmType('tracnghiem');
-    setCorrectAnswers('1-a,2-b,3-d,4-c');
+    setAsmType('quiz');
+    setExamFileUrl('');
+    setExamFileName('');
+    setExamFileType('pdf');
+    setQuestionCount(4);
     setErrors({});
     setIsModalOpen(true);
   };
@@ -95,11 +101,11 @@ export function useAssignmentsViewModel(teacherId: string) {
       description: description.trim(),
       dueDate,
       maxPoints,
-      // Pass custom fields as structural payload
-      ...({
-        type: asmType,
-        correctAnswers: asmType === 'tracnghiem' ? correctAnswers.trim() : ''
-      } as any)
+      type: asmType,
+      examFileUrl: examFileUrl || undefined,
+      examFileName: examFileName || undefined,
+      examFileType: examFileType || undefined,
+      questionCount: questionCount || 1
     });
 
     setIsModalOpen(false);
@@ -143,7 +149,7 @@ export function useAssignmentsViewModel(teacherId: string) {
   const handleSubmitTestSolve = (onSuccess: (msg: string) => void) => {
     if (!selectedAssignment) return;
 
-    const isQuiz = (selectedAssignment as any).type === 'tracnghiem';
+    const isQuiz = selectedAssignment.type === 'quiz';
     if (isQuiz) {
       // Compare answers
       const keys = (selectedAssignment as any).correctAnswers || '';
@@ -190,8 +196,14 @@ export function useAssignmentsViewModel(teacherId: string) {
     setMaxPoints,
     asmType,
     setAsmType,
-    correctAnswers,
-    setCorrectAnswers,
+    examFileUrl,
+    setExamFileUrl,
+    examFileName,
+    setExamFileName,
+    examFileType,
+    setExamFileType,
+    questionCount,
+    setQuestionCount,
     errors,
     createAssignment: handleCreateAssignment,
     deleteAssignment: handleDeleteAssignment,
