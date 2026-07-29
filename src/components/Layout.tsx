@@ -19,7 +19,8 @@ import {
   Settings,
   ShieldAlert,
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  Layers
 } from 'lucide-react';
 import { AIChatInterface } from './AIChatInterface';
 import { User as UserType } from '../types';
@@ -56,6 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({
         return [
           { id: 'dashboard', label: 'Bảng thống kê', icon: ShieldAlert },
           { id: 'departments', label: 'Quản lý Khoa', icon: Settings },
+          { id: 'majors', label: 'Quản lý Ngành', icon: Layers },
           { id: 'subjects', label: 'Quản lý Môn học', icon: BookOpen },
           { id: 'classes', label: 'Quản lý Lớp học', icon: Calendar },
           { id: 'teachers', label: 'Quản lý Giảng viên', icon: GraduationCap },

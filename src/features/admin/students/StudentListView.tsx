@@ -11,8 +11,14 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
   const {
     students,
     classCodes,
+    departments,
+    majors,
     searchTerm,
     setSearchTerm,
+    selectedDepartmentFilter,
+    setSelectedDepartmentFilter,
+    selectedMajorFilter,
+    setSelectedMajorFilter,
     selectedClassFilter,
     setSelectedClassFilter,
     isModalOpen,
@@ -57,6 +63,21 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
     {
       header: 'Họ và Tên',
       accessor: (s: any) => <span className="font-semibold text-slate-800">{s.name}</span>
+    },
+    {
+      header: 'Khoa',
+      accessor: (s: any) => {
+        const maj = majors?.find((m: any) => m.id === s.majorId);
+        const deptName = maj ? (departments?.find((d: any) => d.id === maj.departmentId)?.name ?? 'Chưa xác định') : 'Chưa xác định';
+        return <span className="text-xs text-slate-600">{deptName}</span>;
+      }
+    },
+    {
+      header: 'Ngành',
+      accessor: (s: any) => {
+        const maj = majors?.find((m: any) => m.id === s.majorId);
+        return maj ? <span className="text-xs text-slate-700">{maj.id} — {maj.name}</span> : <span className="text-xs text-slate-400">Chưa chọn</span>;
+      }
     },
     {
       header: 'Lớp',
@@ -159,6 +180,37 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
 
         <div className="w-full sm:w-48">
           <select
+            value={selectedDepartmentFilter}
+            onChange={(e) => { setSelectedDepartmentFilter(e.target.value); setSelectedMajorFilter('all'); }}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
+          >
+            <option value="all">Tất cả khoa</option>
+            {departments.map((d: any) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="w-full sm:w-48">
+          <select
+            value={selectedMajorFilter}
+            onChange={(e) => setSelectedMajorFilter(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
+            disabled={selectedDepartmentFilter !== 'all' && !departments.find((d:any) => d.id === selectedDepartmentFilter)}
+          >
+            <option value="all">Tất cả ngành</option>
+            {majors
+              .filter((m: any) => selectedDepartmentFilter === 'all' || m.departmentId === selectedDepartmentFilter)
+              .map((m: any) => (
+                <option key={m.id} value={m.id}>{m.id} — {m.name}</option>
+              ))}
+          </select>
+        </div>
+
+        <div className="w-full sm:w-48">
+          <select
             value={selectedClassFilter}
             onChange={(e) => setSelectedClassFilter(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
@@ -254,6 +306,39 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa</label>
+              <select
+                name="departmentId"
+                value={formData.departmentId}
+                onChange={handleInputChange}
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
+              >
+                <option value="">-- Chọn khoa --</option>
+                {departments.map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              {errors.departmentId && <p className="mt-1 text-xs text-rose-600">{errors.departmentId}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Ngành</label>
+              <select
+                name="majorId"
+                value={formData.majorId}
+                onChange={handleInputChange}
+                disabled={!formData.departmentId}
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
+              >
+                <option value="">-- Chọn ngành --</option>
+                {majors.filter((m: any) => !formData.departmentId || m.departmentId === formData.departmentId).map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.id} — {m.name}</option>
+                ))}
+              </select>
+              {errors.majorId && <p className="mt-1 text-xs text-rose-600">{errors.majorId}</p>}
+            </div>
+
             <FormInput
               label="Lớp Khóa Học"
               name="classCode"
@@ -262,29 +347,6 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
               placeholder="Ví dụ: K64-CNTT..."
               error={errors.classCode}
             />
-
-            <FormInput
-              label="Ngày Sinh"
-              name="birthDate"
-              type="date"
-              value={formData.birthDate}
-              onChange={handleInputChange}
-              error={errors.birthDate}
-            />
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Giới Tính</label>
-              <select
-                name="gender"
-                value={formData.gender}
-                onChange={handleInputChange}
-                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
-              >
-                <option value="Nam">Nam</option>
-                <option value="Nữ">Nữ</option>
-                <option value="Khác">Khác</option>
-              </select>
-            </div>
           </div>
 
           <div>

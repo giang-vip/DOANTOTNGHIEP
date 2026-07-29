@@ -271,8 +271,11 @@ export function RegistrationView({ studentProfile, triggerToast }: RegistrationV
               />
             </div>
 
-            <div className="flex gap-2 items-center text-[10px] text-slate-400 font-semibold">
-              <Info className="h-4 w-4 text-blue-500 shrink-0" />
+            <div className="flex flex-col gap-2 text-[10px] text-slate-400 font-semibold">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-blue-500 shrink-0" />
+                <span>Danh sách lớp học phần chỉ hiển thị theo ngành bạn đang theo học.</span>
+              </div>
               <span>Học phần nâng cao <strong className="text-slate-600">INT102</strong> yêu cầu môn tiên quyết <strong className="text-slate-600">INT101</strong>; Học phần <strong className="text-slate-600">MAT102</strong> yêu cầu <strong className="text-slate-600">MAT101</strong>.</span>
             </div>
           </Card>
@@ -282,7 +285,7 @@ export function RegistrationView({ studentProfile, triggerToast }: RegistrationV
             <Table
               data={availableClasses}
               columns={availableColumns}
-              emptyMessage="Không tìm thấy lớp học phần mở nào phù hợp với từ khóa."
+              emptyMessage="Không tìm thấy lớp học phần mở nào phù hợp với ngành của bạn hoặc từ khóa tìm kiếm."
             />
           </Card>
         </div>

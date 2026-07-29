@@ -3,12 +3,16 @@ import { useStore } from '../models/store';
 import { convertToLetterGrade, convertToGpa4, getAcademicClassification, getClassificationVariant } from '../utils/gradeUtils';
 import { getDefaultColumnsConfig } from '../features/teacher/grading/useGradingViewModel';
 
-export function useStudentAcademicStats(studentId: string) {
+export function useStudentAcademicStats(studentId: string, studentMajorId?: string) {
   const { classes, grades } = useStore();
 
   const stats = useMemo(() => {
-    // 1. Find all classes this student is registered in
-    const studentClasses = classes.filter(c => c.studentIds.includes(studentId));
+    // 1. Find all classes this student is registered in and consistent with major if provided
+    const studentClasses = classes.filter(c => {
+      const isEnrolled = c.studentIds.includes(studentId);
+      const majorMatches = !studentMajorId || !c.majorId || c.majorId === studentMajorId;
+      return isEnrolled && majorMatches;
+    });
 
     let completedCredits = 0;
     let totalPoints = 0;

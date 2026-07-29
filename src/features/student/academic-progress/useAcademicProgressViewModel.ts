@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '../../../models/store';
 import { Student, ClassSection, GradeRecord } from '../../../types';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 import { getDefaultColumnsConfig } from '../../teacher/grading/useGradingViewModel';
 import {
   convertToLetterGrade,
@@ -47,8 +48,8 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
 
   // Find all classes this student is registered in
   const studentClasses = useMemo(() => {
-    return classes.filter(c => c.studentIds.includes(studentProfile.id));
-  }, [classes, studentProfile.id]);
+    return getConsistentStudentClasses(classes, studentProfile);
+  }, [classes, studentProfile.id, studentProfile.majorId]);
 
   // Compute detailed grade and attendance info for each class
   const allClassGrades = useMemo((): SubjectGradeInfo[] => {
@@ -162,7 +163,7 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
 
   // Calculate overall GPA and total credits
   // GPA tích lũy đến thời điểm hiện tại: chỉ tính môn đã hoàn thành (all assessments filled)
-  const stats = useStudentAcademicStats(studentProfile.id);
+  const stats = useStudentAcademicStats(studentProfile.id, studentProfile.majorId);
 
   // GPA per semester data for Recharts chart
   const semesterChartData = useMemo(() => {

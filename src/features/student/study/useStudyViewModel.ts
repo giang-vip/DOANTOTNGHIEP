@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../../models/store';
 import { Student, LearningMaterial, ClassSection, Assignment, Submission, AttendanceRecord, AttendanceSession } from '../../../types';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 
 interface Message {
   id: string;
@@ -21,7 +22,7 @@ export function useStudyViewModel(studentProfile: Student) {
     updateAttendanceRecords
   } = useStore();
 
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentProfile.id));
+  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
   const [selectedClass, setSelectedClass] = useState<ClassSection | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../../models/store';
 import { Student, ClassSection } from '../../../types';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 
 export function getClassStatus(startDateStr?: string, endDateStr?: string, compareDateStr?: string) {
   if (!startDateStr || !endDateStr) return 'ongoing';
@@ -22,8 +23,8 @@ export function getClassStatus(startDateStr?: string, endDateStr?: string, compa
 export function useScheduleViewModel(studentProfile: Student) {
   const { classes } = useStore();
 
-  // Enrolled classes for this student
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentProfile.id));
+  // Enrolled classes for this student that also match their major assignment
+  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
   // State controls
   const [viewMode, setViewMode] = useState<'week' | 'day'>('week');

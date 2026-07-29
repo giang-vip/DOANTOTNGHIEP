@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '../../../components/UI';
 import { Student } from '../../../types';
 import { useStore } from '../../../models/store';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WeeklyTimetable } from '../../../components/WeeklyTimetable';
 
@@ -27,8 +28,8 @@ function getWeekRange(d: Date) {
 export function ScheduleView({ studentProfile }: ScheduleViewProps) {
   const { classes } = useStore();
 
-  // Enrolled classes for this student
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentProfile.id));
+  // Enrolled classes for this student, filtered consistently by the student major
+  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
   // Current date state for week shifting
   const [currentDate, setCurrentDate] = useState<Date>(new Date());

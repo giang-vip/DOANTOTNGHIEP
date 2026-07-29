@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../../models/store';
 import { Student, ClassSection } from '../../../types';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 
 export function useRegistrationViewModel(studentProfile: Student) {
   const {
@@ -29,13 +30,15 @@ export function useRegistrationViewModel(studentProfile: Student) {
 
   const isWindowActive = isRegistrationWindowOpen();
 
-  // Enrolled class sections
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentProfile.id));
+  // Enrolled class sections that also match the student's major
+  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
-  // All available classes matching search
-  const availableClasses = classes.filter(
-    c => c.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // All available classes matching search and student's major
+  const availableClasses = classes.filter((c) => {
+    const classMatchesMajor = !studentProfile.majorId || !c.majorId || c.majorId === studentProfile.majorId;
+    const matchesSearch = c.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return classMatchesMajor && matchesSearch;
+  });
 
   // Checks course prerequisites
   // For demonstration:
@@ -104,6 +107,12 @@ export function useRegistrationViewModel(studentProfile: Student) {
     const preCheck = checkPrerequisites(cls);
     if (!preCheck.passed) {
       onError(preCheck.message || '');
+      return;
+    }
+
+    // Major membership check
+    if (studentProfile.majorId && cls.majorId && studentProfile.majorId !== cls.majorId) {
+      onError('Không thể đăng ký lớp này vì nó không thuộc ngành của bạn.');
       return;
     }
 

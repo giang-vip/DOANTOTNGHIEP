@@ -23,7 +23,7 @@ export interface Student {
   userId: string;
   name: string;
   email: string;
-  classCode: string; // e.g. K64-CNTT
+  classCode: string; // e.g. K64-CNTT (administrative class code)
   phone: string;
   status: StudentStatus;
   birthDate: string;
@@ -32,6 +32,8 @@ export interface Student {
   totalCredits: number;
   avatar?: string;
   facePhotos?: string[];
+  // Major that the student is enrolled in (code of major, e.g. KTPM)
+  majorId?: string;
 }
 
 export type TeacherStatus = 'active' | 'on_leave' | 'suspended';
@@ -53,11 +55,22 @@ export interface Department {
   description: string;
 }
 
+export interface Major {
+  id: string; // MaNganh, e.g. KTPM
+  name: string;
+  departmentId: string; // MaKhoa where this major belongs
+  description?: string;
+  status?: 'active' | 'inactive';
+}
+
 export interface Subject {
   id: string; // MaMH, e.g. INT1001
   name: string;
   credits: number;
-  department: string;
+  // Historically subjects had department; keep optional for compatibility
+  department?: string;
+  // List of major ids that this subject applies to (many-to-many)
+  majorIds?: string[];
 }
 
 export interface ClassSection {
@@ -77,6 +90,8 @@ export interface ClassSection {
   endDate: string; // e.g. "YYYY-MM-DD"
   periodStart?: number;
   periodEnd?: number;
+  // Administrative class/major context: optional major assigned for the section (helps filtering by major)
+  majorId?: string;
 }
 
 export interface RegistrationPeriod {

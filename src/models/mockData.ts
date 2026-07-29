@@ -7,6 +7,7 @@ import {
   User,
   Student,
   Teacher,
+  Major,
   Subject,
   ClassSection,
   RegistrationPeriod,
@@ -154,7 +155,8 @@ export const INITIAL_STUDENTS: Student[] = [
     birthDate: '2005-05-15',
     gender: 'Nam',
     gpa: 3.42,
-    totalCredits: 68
+    totalCredits: 68,
+    majorId: 'KTPM'
   },
   {
     id: 'SV002',
@@ -167,7 +169,8 @@ export const INITIAL_STUDENTS: Student[] = [
     birthDate: '2005-09-22',
     gender: 'Nam',
     gpa: 2.85,
-    totalCredits: 62
+    totalCredits: 62,
+    majorId: 'KTPM'
   },
   {
     id: 'SV003',
@@ -180,7 +183,8 @@ export const INITIAL_STUDENTS: Student[] = [
     birthDate: '2005-12-01',
     gender: 'Nữ',
     gpa: 3.75,
-    totalCredits: 71
+    totalCredits: 71,
+    majorId: 'KHMT'
   },
   {
     id: 'SV004',
@@ -193,7 +197,8 @@ export const INITIAL_STUDENTS: Student[] = [
     birthDate: '2005-02-10',
     gender: 'Nam',
     gpa: 3.12,
-    totalCredits: 65
+    totalCredits: 65,
+    majorId: 'KTPM'
   },
   {
     id: 'SV005',
@@ -206,8 +211,18 @@ export const INITIAL_STUDENTS: Student[] = [
     birthDate: '2005-07-30',
     gender: 'Nam',
     gpa: 3.56,
-    totalCredits: 68
+    totalCredits: 68,
+    majorId: 'NNA'
   }
+];
+
+export const INITIAL_MAJORS: Major[] = [
+  { id: 'CNTT', name: 'Công nghệ thông tin', departmentId: 'CNTT', description: 'Ngành Công nghệ thông tin', status: 'active' },
+  { id: 'KTPM', name: 'Kỹ thuật phần mềm', departmentId: 'CNTT', description: 'Ngành Kỹ thuật phần mềm', status: 'active' },
+  { id: 'KHMT', name: 'Khoa học máy tính', departmentId: 'CNTT', description: 'Ngành Khoa học máy tính', status: 'active' },
+  { id: 'KT', name: 'Kế toán', departmentId: 'KT', description: 'Ngành Kế toán', status: 'active' },
+  { id: 'QTKD', name: 'Quản trị kinh doanh', departmentId: 'KT', description: 'Ngành Quản trị kinh doanh', status: 'active' },
+  { id: 'NNA', name: 'Ngôn ngữ Anh', departmentId: 'NN', description: 'Ngành Ngôn ngữ Anh', status: 'active' }
 ];
 
 export const INITIAL_SUBJECTS: Subject[] = [
@@ -215,31 +230,36 @@ export const INITIAL_SUBJECTS: Subject[] = [
     id: 'INT1001',
     name: 'Lập trình hướng đối tượng',
     credits: 3,
-    department: 'Công nghệ thông tin'
+    department: 'Công nghệ thông tin',
+    majorIds: ['KTPM', 'KHMT']
   },
   {
     id: 'INT1002',
     name: 'Cơ sở dữ liệu',
     credits: 3,
-    department: 'Hệ thống thông tin'
+    department: 'Hệ thống thông tin',
+    majorIds: ['KTPM']
   },
   {
     id: 'INT1003',
     name: 'Trí tuệ nhân tạo',
     credits: 4,
-    department: 'Khoa học máy tính'
+    department: 'Khoa học máy tính',
+    majorIds: ['KHMT']
   },
   {
     id: 'MAT1001',
     name: 'Giải tích 1',
     credits: 3,
-    department: 'Toán học'
+    department: 'Toán học',
+    majorIds: ['CNTT', 'KTPM', 'KHMT']
   },
   {
     id: 'ENG1001',
     name: 'Tiếng Anh chuyên ngành',
     credits: 2,
-    department: 'Ngoại ngữ'
+    department: 'Ngoại ngữ',
+    majorIds: ['NNA', 'CNTT']
   }
 ];
 
@@ -260,7 +280,8 @@ export const INITIAL_CLASSES: ClassSection[] = [
     startDate: '2026-06-01',
     endDate: '2026-08-30',
     periodStart: 1,
-    periodEnd: 3
+    periodEnd: 3,
+    majorId: 'KTPM'
   },
   {
     id: 'LHP002',
@@ -278,7 +299,8 @@ export const INITIAL_CLASSES: ClassSection[] = [
     startDate: '2026-06-15',
     endDate: '2026-09-15',
     periodStart: 7,
-    periodEnd: 9
+    periodEnd: 9,
+    majorId: 'KTPM'
   },
   {
     id: 'LHP003',
@@ -296,7 +318,8 @@ export const INITIAL_CLASSES: ClassSection[] = [
     startDate: '2026-06-01',
     endDate: '2026-08-20',
     periodStart: 2,
-    periodEnd: 5
+    periodEnd: 5,
+    majorId: 'KHMT'
   },
   {
     id: 'LHP004',
@@ -314,7 +337,8 @@ export const INITIAL_CLASSES: ClassSection[] = [
     startDate: '2026-06-01',
     endDate: '2026-08-15',
     periodStart: 4,
-    periodEnd: 6
+    periodEnd: 6,
+    majorId: 'CNTT'
   },
   {
     id: 'LHP005',
@@ -332,7 +356,8 @@ export const INITIAL_CLASSES: ClassSection[] = [
     startDate: '2026-08-01',
     endDate: '2026-10-15',
     periodStart: 1,
-    periodEnd: 3
+    periodEnd: 3,
+    majorId: 'NNA'
   },
   {
     id: 'LHP006',
@@ -350,7 +375,8 @@ export const INITIAL_CLASSES: ClassSection[] = [
     startDate: '2026-02-01',
     endDate: '2026-05-15',
     periodStart: 8,
-    periodEnd: 10
+    periodEnd: 10,
+    majorId: 'KHMT'
   }
 ];
 

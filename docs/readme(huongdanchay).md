@@ -58,8 +58,7 @@ Thư mục `docs/` chứa toàn bộ tài liệu đặc tả cấu trúc nghiệ
 3. **[business-flows-admin-teacher-student.md](file:///d:/DO%20AN%20TRUONG%20HOC%20THONG%20MINH/quan-ly-va-ho-tro-hoc-tap-hung-nhan/docs/business-flows-admin-teacher-student.md):**
    - Mô tả các luồng nghiệp vụ chi tiết của 3 nhóm tác nhân chính: Admin (Quản trị viên), Teacher (Giảng viên), Student (Sinh viên).
    - Đặc tả quy trình điểm danh sinh trắc, quy trình làm bài kiểm tra trắc nghiệm 2 cột có file đề và tự động chấm điểm.
-
-4. **[fe-be-integration-guide.md](file:///d:/DO%20AN%20TRUONG%20HOC%20THONG%20MINH/quan-ly-va-ho-tro-hoc-tap-hung-nhan/docs/fe-be-integration-guide.md):**
-   - Hướng dẫn tích hợp kết nối API giữa Frontend React và Backend Spring Boot.
-   - Liệt kê chi tiết các RESTful Endpoints (`GET`, `POST`...), định dạng JSON Request/Response mẫu của các chức năng (làm bài trắc nghiệm, điểm danh khuôn mặt, học liệu).
-   - Ví dụ viết code Entity JPA kết nối Database bằng Java.
+4. **[project-structure.md](file:///d:/DO%20AN%20TRUONG%20HOC%20THONG%20MINH/quan-ly-va-ho-tro-hoc-tap-hung-nhan/docs/project-structure.md):**
+   - Tổng quan cấu trúc thư mục dự án.
+   - Định nghĩa vai trò của các thư mục `src/`, `src/features/`, `src/components/`, `src/models/`, `src/utils/`, và tài liệu `docs/`.
+   - Hướng dẫn nhanh cho lập trình viên mở rộng các tính năng mới mà không làm thay đổi kiến trúc hiện tại.

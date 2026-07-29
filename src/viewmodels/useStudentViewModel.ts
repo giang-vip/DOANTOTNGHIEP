@@ -4,6 +4,7 @@
  */
 
 import { useStore } from '../models/store';
+import { getConsistentStudentClasses } from '../utils/studentClassUtils';
 import {
   ClassSection,
   LearningMaterial,
@@ -36,11 +37,15 @@ export function useStudentViewModel(studentId: string) {
   // 1. Get current student details
   const currentStudent = students.find(s => s.id === studentId);
 
-  // 2. Get registered classes
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentId));
+  // 2. Get registered classes, filtered to remain consistent with the student's major
+  const enrolledClasses = currentStudent
+    ? getConsistentStudentClasses(classes, currentStudent)
+    : classes.filter(c => c.studentIds.includes(studentId));
 
   // 3. Get list of available classes for registration
-  const availableClasses = classes; // Display all for registration
+  const availableClasses = currentStudent
+    ? classes.filter(c => !currentStudent.majorId || !c.majorId || c.majorId === currentStudent.majorId)
+    : classes; // Display all for registration if student data is unavailable
 
   // 4. Check if registration is open
   const isRegistrationOpen = (): boolean => {

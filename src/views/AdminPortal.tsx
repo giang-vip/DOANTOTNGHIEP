@@ -11,6 +11,7 @@ import { ClassSectionListView } from '../features/admin/classes/ClassSectionList
 import { TeacherListView } from '../features/admin/teachers/TeacherListView';
 import { StudentListView } from '../features/admin/students/StudentListView';
 import { AnnouncementsView } from '../features/admin/announcements/AnnouncementsView';
+import { MajorListView } from '../features/admin/majors/MajorListView';
 
 interface AdminPortalProps {
   activeTab: string;
@@ -23,6 +24,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ activeTab, triggerToas
       return <DashboardView />;
     case 'departments':
       return <DepartmentListView triggerToast={triggerToast} />;
+    case 'majors':
+      return <MajorListView triggerToast={triggerToast} />;
     case 'subjects':
       return <SubjectListView triggerToast={triggerToast} />;
     case 'classes':

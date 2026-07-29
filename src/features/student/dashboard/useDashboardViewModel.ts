@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useStore } from '../../../models/store';
 import { Student } from '../../../types';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 import { useStudentAcademicStats } from '../../../hooks/useStudentAcademicStats';
 
 export function useDashboardViewModel(studentProfile: Student) {
   const { classes, assignments, submissions, notifications } = useStore();
-  const { cumulativeGpa } = useStudentAcademicStats(studentProfile.id);
+  const { cumulativeGpa } = useStudentAcademicStats(studentProfile.id, studentProfile.majorId);
 
-  // Enrolled classes
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentProfile.id));
+  // Enrolled classes that are consistent with the student's assigned major
+  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
   // Accumulated credits
   const totalCredits = enrolledClasses.reduce((sum, c) => sum + c.credits, 0);

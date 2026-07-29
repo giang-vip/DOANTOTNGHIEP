@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../../models/store';
 import { Student, Assignment, Submission } from '../../../types';
+import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
 
 export function useHomeworkViewModel(studentProfile: Student) {
   const {
@@ -11,7 +12,7 @@ export function useHomeworkViewModel(studentProfile: Student) {
     gradeSubmission
   } = useStore();
 
-  const enrolledClassIds = classes.filter(c => c.studentIds.includes(studentProfile.id)).map(c => c.id);
+  const enrolledClassIds = getConsistentStudentClasses(classes, studentProfile).map(c => c.id);
 
   // Filter assignments for enrolled classes
   const homeworks = assignments.filter(a => enrolledClassIds.includes(a.classId));
@@ -131,7 +132,7 @@ export function useHomeworkViewModel(studentProfile: Student) {
     }
   };
 
-  const enrolledClasses = classes.filter(c => c.studentIds.includes(studentProfile.id));
+  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
   return {
     homeworks,

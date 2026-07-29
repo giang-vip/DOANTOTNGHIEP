@@ -3,9 +3,11 @@ import { useStore } from '../../../models/store';
 import { Student, StudentStatus } from '../../../types';
 
 export function useStudentListViewModel() {
-  const { students, addStudent, updateStudent, deleteStudent } = useStore();
+  const { students, addStudent, updateStudent, deleteStudent, departments, majors } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState('all');
+  const [selectedMajorFilter, setSelectedMajorFilter] = useState('all');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -28,7 +30,9 @@ export function useStudentListViewModel() {
     birthDate: '',
     gender: 'Nam' as 'Nam' | 'Nữ' | 'Khác',
     status: 'active' as StudentStatus,
-    password: '123'
+    password: '123',
+    departmentId: '',
+    majorId: ''
   });
 
   // Extract unique class codes for filter dropdown
@@ -57,7 +61,15 @@ export function useStudentListViewModel() {
 
     const matchesClass = selectedClassFilter === 'all' || s.classCode === selectedClassFilter;
 
-    return matchesSearch && matchesClass;
+    let matchesDepartment = true;
+    if (selectedDepartmentFilter !== 'all') {
+      const maj = majors.find(m => m.id === s.majorId);
+      matchesDepartment = !!maj && maj.departmentId === selectedDepartmentFilter;
+    }
+
+    const matchesMajor = selectedMajorFilter === 'all' || s.majorId === selectedMajorFilter;
+
+    return matchesSearch && matchesClass && matchesDepartment && matchesMajor;
   });
 
   const openAddModal = () => {
@@ -71,7 +83,9 @@ export function useStudentListViewModel() {
       birthDate: '2005-01-01',
       gender: 'Nam',
       status: 'active',
-      password: '123'
+      password: '123',
+      departmentId: '',
+      majorId: ''
     });
     setErrors({});
     setIsModalOpen(true);
@@ -80,6 +94,8 @@ export function useStudentListViewModel() {
   const openEditModal = (s: Student) => {
     setEditingStudent(s);
     const pwd = getStudentPassword(s.id);
+    // Determine departmentId from student's major if available
+    const major = majors.find(m => m.id === s.majorId);
     setFormData({
       id: s.id,
       name: s.name,
@@ -89,7 +105,9 @@ export function useStudentListViewModel() {
       birthDate: s.birthDate,
       gender: s.gender,
       status: s.status,
-      password: pwd
+      password: pwd,
+      departmentId: major ? major.departmentId : '',
+      majorId: s.majorId || ''
     });
     setErrors({});
     setIsModalOpen(true);
@@ -97,7 +115,14 @@ export function useStudentListViewModel() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // When department changes, reset major selection
+    if (name === 'departmentId') {
+      setFormData(prev => ({ ...prev, departmentId: value, majorId: '' }));
+    } else if (name === 'majorId') {
+      setFormData(prev => ({ ...prev, majorId: value }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const validate = (): boolean => {
@@ -111,6 +136,16 @@ export function useStudentListViewModel() {
     if (!formData.phone.trim()) tempErrors.phone = 'Số điện thoại không được để trống';
     if (!formData.classCode.trim()) tempErrors.classCode = 'Lớp khóa học không được để trống';
     if (!formData.birthDate) tempErrors.birthDate = 'Vui lòng điền ngày sinh';
+
+    // Require department and major to be selected and that major belongs to department
+    if (!formData.departmentId) tempErrors.departmentId = 'Vui lòng chọn khoa';
+    if (!formData.majorId) tempErrors.majorId = 'Vui lòng chọn ngành';
+    if (formData.departmentId && formData.majorId) {
+      const maj = majors.find(m => m.id === formData.majorId);
+      if (!maj || maj.departmentId !== formData.departmentId) {
+        tempErrors.majorId = 'Ngành chọn không thuộc khoa đã chọn';
+      }
+    }
 
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
@@ -127,7 +162,8 @@ export function useStudentListViewModel() {
         classCode: formData.classCode.trim(),
         birthDate: formData.birthDate,
         gender: formData.gender,
-        status: formData.status
+        status: formData.status,
+        majorId: formData.majorId || undefined
       });
 
       // Update password inside passwords map
@@ -146,7 +182,8 @@ export function useStudentListViewModel() {
         classCode: formData.classCode.toUpperCase().trim(),
         birthDate: formData.birthDate,
         gender: formData.gender,
-        status: formData.status
+        status: formData.status,
+        majorId: formData.majorId || undefined
       });
 
       // Write password in localStorage
@@ -180,8 +217,14 @@ export function useStudentListViewModel() {
   return {
     students: filteredStudents,
     classCodes: uniqueClassCodes,
+    departments,
+    majors,
     searchTerm,
     setSearchTerm,
+    selectedDepartmentFilter,
+    setSelectedDepartmentFilter,
+    selectedMajorFilter,
+    setSelectedMajorFilter,
     selectedClassFilter,
     setSelectedClassFilter,
     isModalOpen,

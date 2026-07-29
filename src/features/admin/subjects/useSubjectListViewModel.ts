@@ -3,10 +3,10 @@ import { useStore } from '../../../models/store';
 import { Subject } from '../../../types';
 
 export function useSubjectListViewModel() {
-  const { subjects, departments, addSubject, updateSubject, deleteSubject } = useStore();
+  const { subjects, departments, majors, addSubject, updateSubject, deleteSubject } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState('all');
+  const [selectedMajorFilter, setSelectedMajorFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -15,17 +15,19 @@ export function useSubjectListViewModel() {
     id: '',
     name: '',
     credits: 3,
-    department: ''
-  });
+    department: '',
+    majorIds: []
+  } as Subject);
 
   const filteredSubjects = subjects.filter(sub => {
     const matchesSearch =
       sub.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sub.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesDept = selectedDeptFilter === 'all' || sub.department === selectedDeptFilter;
 
-    return matchesSearch && matchesDept;
+    const matchesMajor =
+      selectedMajorFilter === 'all' || (Array.isArray(sub.majorIds) && sub.majorIds.includes(selectedMajorFilter));
+
+    return matchesSearch && matchesMajor;
   });
 
   const openAddModal = () => {
@@ -34,21 +36,31 @@ export function useSubjectListViewModel() {
       id: '',
       name: '',
       credits: 3,
-      department: departments[0]?.name || ''
-    });
+      department: departments[0]?.name || '',
+      majorIds: []
+    } as Subject);
     setErrors({});
     setIsModalOpen(true);
   };
 
   const openEditModal = (sub: Subject) => {
     setEditingSubject(sub);
-    setFormData({ ...sub });
+    setFormData({ ...sub, majorIds: sub.majorIds ?? [] });
     setErrors({});
     setIsModalOpen(true);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const target = e.target as HTMLSelectElement;
+    const { name } = e.target as any;
+
+    if (target.multiple) {
+      const selected = Array.from(target.selectedOptions).map(o => o.value);
+      setFormData(prev => ({ ...prev, [name]: selected }));
+      return;
+    }
+
+    const value = (e.target as HTMLInputElement).value;
     setFormData(prev => ({
       ...prev,
       [name]: name === 'credits' ? parseInt(value) || 0 : value
@@ -63,7 +75,7 @@ export function useSubjectListViewModel() {
     }
     if (!formData.name.trim()) tempErrors.name = 'Tên môn học không được để trống';
     if (formData.credits <= 0 || formData.credits > 10) tempErrors.credits = 'Số tín chỉ phải từ 1 đến 10';
-    if (!formData.department) tempErrors.department = 'Vui lòng chọn khoa quản lý';
+    if (!formData.majorIds || formData.majorIds.length === 0) tempErrors.majorIds = 'Vui lòng chọn ít nhất một ngành áp dụng';
 
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
@@ -80,7 +92,8 @@ export function useSubjectListViewModel() {
         id: formData.id.toUpperCase().trim(),
         name: formData.name.trim(),
         credits: formData.credits,
-        department: formData.department
+        department: formData.department,
+        majorIds: formData.majorIds ?? []
       });
       onSuccess(`Đã thêm mới môn học ${formData.name} thành công!`);
     }
@@ -98,10 +111,11 @@ export function useSubjectListViewModel() {
   return {
     subjects: filteredSubjects,
     departments,
+    majors,
     searchTerm,
     setSearchTerm,
-    selectedDeptFilter,
-    setSelectedDeptFilter,
+    selectedMajorFilter,
+    setSelectedMajorFilter,
     isModalOpen,
     setIsModalOpen,
     editingSubject,

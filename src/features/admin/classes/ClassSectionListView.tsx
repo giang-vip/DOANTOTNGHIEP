@@ -12,17 +12,27 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
     classes,
     subjects,
     teachers,
+    departments,
+    majors,
+    majorsForSelectedDept,
+    formData,
+    availableSubjectsForForm,
+    errors,
+
     searchTerm,
     setSearchTerm,
+    selectedDepartmentFilter,
+    setSelectedDepartmentFilter,
+    selectedMajorFilter,
+    setSelectedMajorFilter,
     selectedSubjectFilter,
     setSelectedSubjectFilter,
     selectedStatusFilter,
     setSelectedStatusFilter,
+
     isModalOpen,
     setIsModalOpen,
     editingClass,
-    formData,
-    errors,
     openAddModal,
     openEditModal,
     handleInputChange,
@@ -50,6 +60,21 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
       )
     },
     {
+      header: 'Khoa',
+      accessor: (cls: any) => {
+        const majorObj = majors.find((m: any) => m.id === cls.majorId);
+        const deptName = majorObj ? (departments.find(d => d.id === majorObj.departmentId)?.name || '') : '';
+        return <span className="text-sm text-slate-600">{deptName || '—'}</span>;
+      }
+    },
+    {
+      header: 'Ngành áp dụng',
+      accessor: (cls: any) => {
+        const majorObj = majors.find((m: any) => m.id === cls.majorId);
+        return majorObj ? <span className="text-sm font-medium text-slate-700">{majorObj.id} — {majorObj.name}</span> : <span className="text-sm text-slate-500">Chưa xác định</span>;
+      }
+    },
+    {
       header: 'Giảng Viên',
       accessor: (cls: any) => <span className="text-sm font-medium text-slate-600">{cls.teacherName}</span>
     },
@@ -65,15 +90,6 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
     {
       header: 'Phòng',
       accessor: (cls: any) => <Badge variant="gray">P.{cls.room}</Badge>
-    },
-    {
-      header: 'Thời Gian',
-      accessor: (cls: any) => (
-        <div className="text-xs text-slate-500 font-mono">
-          <div>BĐ: {cls.startDate || '2026-06-01'}</div>
-          <div>KT: {cls.endDate || '2026-08-30'}</div>
-        </div>
-      )
     },
     {
       header: 'Trạng Thế',
@@ -149,6 +165,32 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
           />
         </div>
 
+        <div className="w-full sm:w-40">
+          <select
+            value={selectedDepartmentFilter}
+            onChange={(e) => setSelectedDepartmentFilter(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
+          >
+            <option value="all">Tất cả khoa</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="w-full sm:w-48">
+          <select
+            value={selectedMajorFilter}
+            onChange={(e) => setSelectedMajorFilter(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
+          >
+            <option value="all">Tất cả ngành</option>
+            {majorsForSelectedDept.map((m: any) => (
+              <option key={m.id} value={m.id}>{m.id} — {m.name}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="w-full sm:w-48">
           <select
             value={selectedSubjectFilter}
@@ -218,15 +260,50 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa</label>
+              <select
+                name="departmentId"
+                value={formData.departmentId}
+                onChange={handleInputChange}
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
+              >
+                <option value="">-- Chọn khoa --</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name} ({d.id})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Ngành áp dụng</label>
+              <select
+                name="majorId"
+                value={formData.majorId}
+                onChange={handleInputChange}
+                disabled={!formData.departmentId}
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
+              >
+                <option value="">-- Chọn ngành áp dụng --</option>
+                {majors.filter(m => !formData.departmentId || m.departmentId === formData.departmentId).map((m) => (
+                  <option key={m.id} value={m.id}>{m.id} — {m.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Môn Học</label>
               <select
                 name="subjectId"
                 value={formData.subjectId}
                 onChange={handleInputChange}
+                disabled={!formData.majorId}
                 className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
               >
                 <option value="">-- Chọn môn học --</option>
-                {subjects.map((sub) => (
+                {availableSubjectsForForm.length === 0 && formData.majorId && <option value="">(Không có môn nào cho ngành này)</option>}
+                {availableSubjectsForForm.map((sub) => (
                   <option key={sub.id} value={sub.id}>
                     {sub.name} ({sub.id})
                   </option>

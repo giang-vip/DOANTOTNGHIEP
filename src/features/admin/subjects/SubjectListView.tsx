@@ -11,10 +11,11 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
   const {
     subjects,
     departments,
+    majors,
     searchTerm,
     setSearchTerm,
-    selectedDeptFilter,
-    setSelectedDeptFilter,
+    selectedMajorFilter,
+    setSelectedMajorFilter,
     isModalOpen,
     setIsModalOpen,
     editingSubject,
@@ -52,8 +53,23 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
       accessor: (sub: any) => <Badge variant="info">{sub.credits} tín chỉ</Badge>
     },
     {
-      header: 'Khoa Quản Lý',
-      accessor: (sub: any) => <span className="text-xs font-semibold text-slate-600">{sub.department}</span>
+      header: 'Ngành áp dụng',
+      accessor: (sub: any) => {
+        const majorsList: string[] = sub.majorIds || [];
+        if (majorsList.length === 0) return <span className="text-xs text-slate-500">—</span>;
+        const display = majorsList.slice(0, 2).map((m: string) => {
+          const maj = majors.find((x: any) => x.id === m);
+          return maj ? (
+            <span key={m} className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium mr-1">
+              {maj.id}
+            </span>
+          ) : (
+            <span key={m} className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 text-xs font-medium mr-1">{m}</span>
+          );
+        });
+        const extra = majorsList.length > 2 ? <span className="text-xs text-slate-500">+{majorsList.length - 2}</span> : null;
+        return <div className="flex items-center">{display}{extra}</div>;
+      }
     },
     {
       header: 'Thao Tác',
@@ -110,14 +126,14 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
 
         <div className="w-full sm:w-48">
           <select
-            value={selectedDeptFilter}
-            onChange={(e) => setSelectedDeptFilter(e.target.value)}
+            value={selectedMajorFilter}
+            onChange={(e) => setSelectedMajorFilter(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
           >
-            <option value="all">Tất cả khoa</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.name}>
-                {dept.name}
+            <option value="all">Tất cả ngành</option>
+            {majors.map((maj) => (
+              <option key={maj.id} value={maj.id}>
+                {maj.name} — {departments.find(d => d.id === maj.departmentId)?.name || ''}
               </option>
             ))}
           </select>
@@ -183,23 +199,22 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
           />
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Ngành áp dụng</label>
             <select
-              name="department"
-              value={formData.department}
+              name="majorIds"
+              multiple
+              value={formData.majorIds || []}
               onChange={handleInputChange}
-              className={`w-full px-3.5 py-2 rounded-lg border text-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700 ${
-                errors.department ? 'border-rose-300 focus:border-rose-500' : 'border-slate-200'
-              }`}
-            >
-              <option value="">-- Chọn khoa --</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.name}>
-                  {dept.name}
+              className={`w-full h-32 px-3.5 py-2 rounded-lg border text-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700 ${
+                (errors as any).majorIds ? 'border-rose-300 focus:border-rose-500' : 'border-slate-200'
+              }`}>
+              {majors.map((maj) => (
+                <option key={maj.id} value={maj.id}>
+                  {maj.name} — {departments.find(d => d.id === maj.departmentId)?.name || ''}
                 </option>
               ))}
             </select>
-            {errors.department && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.department}</p>}
+            {(errors as any).majorIds && <p className="mt-1 text-xs text-rose-600 font-medium">{(errors as any).majorIds}</p>}
           </div>
         </div>
       </Modal>

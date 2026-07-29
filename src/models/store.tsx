@@ -9,6 +9,7 @@ import {
   Student,
   Teacher,
   Department,
+  Major,
   Subject,
   ClassSection,
   RegistrationPeriod,
@@ -26,6 +27,7 @@ import {
   INITIAL_USERS,
   INITIAL_TEACHERS,
   INITIAL_STUDENTS,
+  INITIAL_MAJORS,
   INITIAL_SUBJECTS,
   INITIAL_CLASSES,
   INITIAL_REGISTRATION_PERIOD,
@@ -49,6 +51,7 @@ interface StoreContextType {
   students: Student[];
   teachers: Teacher[];
   departments: Department[];
+  majors: Major[];
   subjects: Subject[];
   classes: ClassSection[];
   registrationPeriod: RegistrationPeriod;
@@ -81,6 +84,12 @@ interface StoreContextType {
   addDepartment: (dept: Department) => void;
   updateDepartment: (id: string, updates: Partial<Department>) => void;
   deleteDepartment: (id: string) => void;
+
+  // Major Actions
+  addMajor: (major: Major) => void;
+  updateMajor: (id: string, updates: Partial<Major>) => void;
+  deleteMajor: (id: string) => boolean; // returns false if blocked by related data
+  getMajorsByDepartment: (departmentId: string) => Major[];
 
   // Subject Actions
   addSubject: (subject: Subject) => void;
@@ -137,6 +146,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [majors, setMajors] = useState<Major[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [registrationPeriod, setRegistrationPeriod] = useState<RegistrationPeriod>(INITIAL_REGISTRATION_PERIOD);
@@ -158,6 +168,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('hn_users', JSON.stringify(INITIAL_USERS));
       localStorage.setItem('hn_teachers', JSON.stringify(INITIAL_TEACHERS));
       localStorage.setItem('hn_departments', JSON.stringify(INITIAL_DEPARTMENTS));
+      localStorage.setItem('hn_majors', JSON.stringify(INITIAL_MAJORS));
       localStorage.setItem('hn_students', JSON.stringify(INITIAL_STUDENTS));
       localStorage.setItem('hn_subjects', JSON.stringify(INITIAL_SUBJECTS));
       localStorage.setItem('hn_classes', JSON.stringify(INITIAL_CLASSES));
@@ -176,6 +187,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers(INITIAL_USERS);
       setTeachers(INITIAL_TEACHERS);
       setDepartments(INITIAL_DEPARTMENTS);
+      setMajors(INITIAL_MAJORS);
       setStudents(INITIAL_STUDENTS);
       setSubjects(INITIAL_SUBJECTS);
       setClasses(INITIAL_CLASSES);
@@ -193,6 +205,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers(JSON.parse(localStorage.getItem('hn_users') || '[]'));
       setTeachers(JSON.parse(localStorage.getItem('hn_teachers') || '[]'));
       setDepartments(JSON.parse(localStorage.getItem('hn_departments') || '[]'));
+      setMajors(JSON.parse(localStorage.getItem('hn_majors') || '[]'));
       setStudents(JSON.parse(localStorage.getItem('hn_students') || '[]'));
       setSubjects(JSON.parse(localStorage.getItem('hn_subjects') || '[]'));
       setClasses(JSON.parse(localStorage.getItem('hn_classes') || '[]'));
@@ -341,6 +354,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveAndSet('hn_departments', updated, setDepartments);
   };
 
+  // Major Actions
+  const addMajor = (major: Major) => {
+    // Ensure unique id/code
+    if (majors.some(m => m.id.toUpperCase() === major.id.toUpperCase())) {
+      throw new Error('Mã ngành đã tồn tại');
+    }
+    const normalized: Major = { ...major, id: major.id.toUpperCase() };
+    const updated = [...majors, normalized];
+    saveAndSet('hn_majors', updated, setMajors);
+  };
+
+  const updateMajor = (id: string, updates: Partial<Major>) => {
+    const updated = majors.map(m => (m.id === id ? { ...m, ...updates } : m));
+    saveAndSet('hn_majors', updated, setMajors);
+  };
+
+  const deleteMajor = (id: string): boolean => {
+    // Prevent deletion if related data exists
+    const usedByStudents = students.some(s => s.majorId === id);
+    const usedByClasses = classes.some(c => c.majorId === id);
+    const usedBySubjects = subjects.some(s => Array.isArray(s.majorIds) && s.majorIds!.includes(id));
+
+    if (usedByStudents || usedByClasses || usedBySubjects) {
+      return false;
+    }
+
+    const updated = majors.filter(m => m.id !== id);
+    saveAndSet('hn_majors', updated, setMajors);
+    return true;
+  };
+
+  const getMajorsByDepartment = (departmentId: string) => majors.filter(m => m.departmentId === departmentId);
+
   // Subject Actions
   const addSubject = (newSub: Subject) => {
     const updated = [...subjects, newSub];
@@ -383,6 +429,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (targetClass.studentIds.includes(studentId)) return false; // Already enrolled
     if (targetClass.studentIds.length >= targetClass.capacity) return false; // Class full
 
+    const studentObj = students.find(s => s.id === studentId);
+    if (studentObj?.majorId && targetClass.majorId && studentObj.majorId !== targetClass.majorId) {
+      return false;
+    }
+
     const updated = classes.map(c => {
       if (c.id === classId) {
         return {
@@ -396,14 +447,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Seed empty grade record for this student in this class
     const gradeId = `${classId}_${studentId}`;
-    const studentObj = students.find(s => s.id === studentId);
+    const enrollingStudent = students.find(s => s.id === studentId);
     const hasGrade = grades.some(g => g.id === gradeId);
-    if (!hasGrade && studentObj) {
+    if (!hasGrade && enrollingStudent) {
       const newGrade: GradeRecord = {
         id: gradeId,
         classId,
         studentId,
-        studentName: studentObj.name
+        studentName: enrollingStudent.name
       };
       saveAndSet('hn_grades', [...grades, newGrade], setGrades);
     }
@@ -716,6 +767,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         students,
         teachers,
         departments,
+        majors,
         subjects,
         classes,
         registrationPeriod,
@@ -744,6 +796,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addDepartment,
         updateDepartment,
         deleteDepartment,
+
+        addMajor,
+        updateMajor,
+        deleteMajor,
+        getMajorsByDepartment,
 
         addSubject,
         updateSubject,

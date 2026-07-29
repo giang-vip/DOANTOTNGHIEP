@@ -1,6 +1,17 @@
--- MySQL 8.0+ schema for school management system (production-ready)
--- Chạy file này trên MySQL Workbench / MySQL CLI bằng lệnh:
--- source docs/schema.sql
+-- ============================================================
+-- DATABASE: SCHOOL MANAGEMENT SYSTEM
+-- DBMS: MySQL 8.0+
+-- Nội dung bổ sung:
+--   1. Mỗi ngành trực thuộc một khoa.
+--   2. Mỗi lớp hành chính và sinh viên thuộc một ngành.
+--   3. major_subjects quản lý môn học theo chương trình của ngành.
+--   4. View lọc các lớp học phần sinh viên được phép đăng ký.
+--   5. Trigger chặn sinh viên đăng ký môn ngoài ngành.
+--
+-- Import bằng MySQL Workbench: Server > Data Import hoặc mở file và Execute.
+-- Import bằng CLI:
+--   mysql -u root -p < school_management_mysql.sql
+-- ============================================================
 
 DROP DATABASE IF EXISTS school_management;
 CREATE DATABASE school_management
@@ -47,6 +58,21 @@ CREATE TABLE departments (
     description TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Ngành đào tạo trực thuộc một khoa
+CREATE TABLE majors (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    department_id BIGINT UNSIGNED NOT NULL,
+    code VARCHAR(50) NOT NULL UNIQUE COMMENT 'VD: CNTT, HTTT, KTPM',
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_major_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    UNIQUE KEY uq_major_department_name (department_id, name),
+    INDEX idx_majors_department_id (department_id),
+    INDEX idx_majors_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE academic_years (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(20) NOT NULL UNIQUE COMMENT 'VD: 2024-2025',
@@ -89,15 +115,15 @@ CREATE TABLE classes (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(50) NOT NULL UNIQUE COMMENT 'VD: K64-CNTT',
     name VARCHAR(255) NOT NULL,
-    department_id BIGINT UNSIGNED,
+    major_id BIGINT UNSIGNED NOT NULL COMMENT 'Ngành quản lý lớp hành chính',
     entry_academic_year_id BIGINT UNSIGNED COMMENT 'Năm nhập học của khoá này',
     homeroom_teacher_id BIGINT UNSIGNED COMMENT 'Giáo viên chủ nhiệm (nếu có)',
     status ENUM('ACTIVE', 'CLOSED', 'ARCHIVED') NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_classes_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    CONSTRAINT fk_classes_major FOREIGN KEY (major_id) REFERENCES majors(id),
     CONSTRAINT fk_classes_entry_year FOREIGN KEY (entry_academic_year_id) REFERENCES academic_years(id),
     CONSTRAINT fk_classes_homeroom FOREIGN KEY (homeroom_teacher_id) REFERENCES teachers(id),
-    INDEX idx_classes_department_id (department_id),
+    INDEX idx_classes_major_id (major_id),
     INDEX idx_classes_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -109,15 +135,15 @@ CREATE TABLE students (
     gender ENUM('MALE', 'FEMALE', 'OTHER') DEFAULT NULL,
     date_of_birth DATE,
     address TEXT,
-    department_id BIGINT UNSIGNED,
+    major_id BIGINT UNSIGNED NOT NULL COMMENT 'Ngành sinh viên đang theo học',
     class_id BIGINT UNSIGNED NULL COMMENT 'Lớp hành chính của sinh viên',
     status ENUM('ACTIVE', 'INACTIVE', 'GRADUATED', 'DROPPED') NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_student_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_student_department FOREIGN KEY (department_id) REFERENCES departments(id),
+    CONSTRAINT fk_student_major FOREIGN KEY (major_id) REFERENCES majors(id),
     CONSTRAINT fk_students_class FOREIGN KEY (class_id) REFERENCES classes(id),
     INDEX idx_students_class_id (class_id),
-    INDEX idx_students_department_id (department_id),
+    INDEX idx_students_major_id (major_id),
     INDEX idx_students_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -130,6 +156,21 @@ CREATE TABLE subjects (
     description TEXT,
     CONSTRAINT fk_subject_department FOREIGN KEY (department_id) REFERENCES departments(id),
     INDEX idx_subjects_department_id (department_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Chương trình đào tạo: môn nào thuộc/được phép học trong từng ngành
+-- Một môn có thể dùng cho nhiều ngành (ví dụ: Triết học, Tiếng Anh).
+CREATE TABLE major_subjects (
+    major_id BIGINT UNSIGNED NOT NULL,
+    subject_id BIGINT UNSIGNED NOT NULL,
+    recommended_semester INT NULL COMMENT 'Học kỳ gợi ý trong chương trình đào tạo',
+    is_required BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'TRUE: bắt buộc, FALSE: tự chọn',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (major_id, subject_id),
+    CONSTRAINT fk_major_subject_major FOREIGN KEY (major_id) REFERENCES majors(id) ON DELETE CASCADE,
+    CONSTRAINT fk_major_subject_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+    CHECK (recommended_semester IS NULL OR recommended_semester > 0),
+    INDEX idx_major_subjects_subject_id (subject_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE class_sections (
@@ -381,6 +422,145 @@ CREATE TABLE chat_messages (
     INDEX idx_chat_messages_conversation_id (conversation_id),
     INDEX idx_chat_messages_sender_id (sender_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- Danh sách lớp học phần mà từng sinh viên được phép đăng ký.
+-- Ứng dụng chỉ cần lọc theo student_id và semester_id.
+CREATE VIEW v_student_available_sections AS
+SELECT
+    st.id AS student_id,
+    st.student_code,
+    st.major_id,
+    m.code AS major_code,
+    cs.id AS class_section_id,
+    cs.section_code,
+    cs.semester_id,
+    sb.id AS subject_id,
+    sb.code AS subject_code,
+    sb.name AS subject_name,
+    sb.credits,
+    ms.is_required,
+    ms.recommended_semester,
+    cs.teacher_id,
+    cs.room,
+    cs.weekday,
+    cs.start_time,
+    cs.end_time,
+    cs.capacity,
+    cs.status
+FROM students st
+JOIN majors m ON m.id = st.major_id
+JOIN major_subjects ms ON ms.major_id = st.major_id
+JOIN subjects sb ON sb.id = ms.subject_id
+JOIN class_sections cs ON cs.subject_id = sb.id
+WHERE st.status = 'ACTIVE'
+  AND m.status = 'ACTIVE'
+  AND cs.status = 'ACTIVE';
+
+DELIMITER $$
+
+-- Không cho gán sinh viên vào lớp hành chính khác ngành.
+CREATE TRIGGER trg_students_validate_class_before_insert
+BEFORE INSERT ON students
+FOR EACH ROW
+BEGIN
+    IF NEW.class_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1
+        FROM classes c
+        WHERE c.id = NEW.class_id
+          AND c.major_id = NEW.major_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Lớp hành chính không thuộc ngành của sinh viên';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_students_validate_class_before_update
+BEFORE UPDATE ON students
+FOR EACH ROW
+BEGIN
+    IF NEW.class_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1
+        FROM classes c
+        WHERE c.id = NEW.class_id
+          AND c.major_id = NEW.major_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Lớp hành chính không thuộc ngành của sinh viên';
+    END IF;
+END$$
+
+-- Chặn đăng ký nếu môn của lớp học phần không nằm trong ngành sinh viên.
+CREATE TRIGGER trg_enrollments_validate_major_before_insert
+BEFORE INSERT ON enrollments
+FOR EACH ROW
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM students st
+        JOIN class_sections cs ON cs.id = NEW.class_section_id
+        JOIN major_subjects ms
+          ON ms.major_id = st.major_id
+         AND ms.subject_id = cs.subject_id
+        WHERE st.id = NEW.student_id
+          AND st.status = 'ACTIVE'
+          AND cs.status = 'ACTIVE'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Sinh viên không được đăng ký môn ngoài ngành hoặc lớp học phần không hoạt động';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_enrollments_validate_major_before_update
+BEFORE UPDATE ON enrollments
+FOR EACH ROW
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM students st
+        JOIN class_sections cs ON cs.id = NEW.class_section_id
+        JOIN major_subjects ms
+          ON ms.major_id = st.major_id
+         AND ms.subject_id = cs.subject_id
+        WHERE st.id = NEW.student_id
+          AND st.status = 'ACTIVE'
+          AND cs.status = 'ACTIVE'
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Sinh viên không được đăng ký môn ngoài ngành hoặc lớp học phần không hoạt động';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- CÁC TRUY VẤN SỬ DỤNG THAM KHẢO
+-- ============================================================
+
+-- 1. Lấy danh sách ngành của một khoa:
+-- SELECT id, code, name
+-- FROM majors
+-- WHERE department_id = ? AND status = 'ACTIVE'
+-- ORDER BY name;
+
+-- 2. Lấy các môn thuộc ngành của sinh viên:
+-- SELECT sb.id, sb.code, sb.name, sb.credits,
+--        ms.is_required, ms.recommended_semester
+-- FROM students st
+-- JOIN major_subjects ms ON ms.major_id = st.major_id
+-- JOIN subjects sb ON sb.id = ms.subject_id
+-- WHERE st.id = ?
+-- ORDER BY ms.recommended_semester, sb.name;
+
+-- 3. Lấy lớp học phần sinh viên được phép đăng ký trong một học kỳ:
+-- SELECT *
+-- FROM v_student_available_sections
+-- WHERE student_id = ? AND semester_id = ?
+-- ORDER BY subject_name, section_code;
+
+-- 4. Đăng ký học. Trigger sẽ tự động từ chối nếu môn không thuộc ngành:
+-- INSERT INTO enrollments(student_id, class_section_id)
+-- VALUES (?, ?);
 
 SET FOREIGN_KEY_CHECKS = 1;
 
