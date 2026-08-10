@@ -1,274 +1,263 @@
-import React, { useState, useMemo } from 'react';
-import { useStore } from '../../../models/store';
-import { ClassSection } from '../../../types';
-
-export function getClassStatus(startDate: string, endDate: string): 'not_started' | 'ongoing' | 'ended' {
-  const today = new Date();
-  const todayYear = today.getFullYear();
-  const todayStrReal = today.toISOString().split('T')[0];
-  // Standardize current date around 2026-07-10 for mock data demo consistency
-  const current = todayYear === 2026 ? todayStrReal : '2026-07-10';
-
-  const start = startDate || '2026-06-01';
-  const end = endDate || '2026-08-30';
-
-  if (current < start) return 'not_started';
-  if (current > end) return 'ended';
-  return 'ongoing';
-}
+import React, { useState, useEffect } from 'react';
+import { adminApi } from '../../../api/services/adminApi';
+import { ClassSection, ClassSectionRequest } from '../../../models/admin/ClassSection';
+import { Subject } from '../../../models/admin/Subject';
+import { Teacher } from '../../../models/admin/Teacher';
+import { Department } from '../../../models/admin/Department';
+import { Major } from '../../../models/admin/Major';
 
 export function useClassSectionListViewModel() {
-  const { classes, subjects, teachers, departments, majors, getMajorsByDepartment, addClass, updateClass, deleteClass } = useStore();
+  const [classSections, setClassSections] = useState<ClassSection[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [majors, setMajors] = useState<Major[]>([]);
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState('all');
-  const [selectedMajorFilter, setSelectedMajorFilter] = useState('all');
-  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState('all');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
-
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingClass, setEditingClass] = useState<ClassSection | null>(null);
+  const [editingItem, setEditingItem] = useState<ClassSection | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Active Teachers & Subjects lists
-  const activeTeachers = teachers.filter(t => t.status === 'active');
-
-  // For form selection we will limit subjects by selected major (if chosen)
-  const [formData, setFormData] = useState({
-    id: '',
-    departmentId: '',
-    majorId: '',
-    subjectId: '',
-    teacherId: '',
-    dayOfWeek: 2, // Thứ Hai
-    timeSlot: '07:00 - 09:30',
+  const [formData, setFormData] = useState<ClassSectionRequest>({
+    departmentId: 0,
+    majorId: 0,
+    subjectId: 0,
+    teacherId: 0,
+    semesterId: 0,
+    sectionCode: '',
     room: '',
+    weekday: 2,
+    startTime: '07:00',
+    endTime: '09:00',
+    startDate: '',
+    endDate: '',
     capacity: 40,
-    startDate: '2026-06-01',
-    endDate: '2026-08-30'
+    status: 'ACTIVE'
   });
 
-  // Compute filtered subject options for form based on selected major
-  const availableSubjectsForForm = useMemo(() => {
-    if (!formData.majorId) return [] as typeof subjects;
-    return subjects.filter(s => Array.isArray(s.majorIds) && s.majorIds!.includes(formData.majorId));
-  }, [subjects, formData.majorId]);
+  const [selectedSemesterId, setSelectedSemesterId] = useState<number | undefined>(undefined);
 
-  // Controller-level filters for table (dept->major->subject hierarchy)
-  const filteredClasses = classes.filter(cls => {
-    const matchesSearch =
-      cls.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cls.subjectName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cls.teacherName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cls.room || '').toLowerCase().includes(searchTerm.toLowerCase());
+  const fetchOptions = async () => {
+    try {
+      const [subjectData, teacherData, deptData, majorData, semesterData] = await Promise.all([
+        adminApi.getAllSubjectsList(),
+        adminApi.getAllTeachersList(),
+        adminApi.getAllDepartments(),
+        adminApi.getAllMajorsList(),
+        adminApi.getAllSemesters()
+      ]);
+      setSubjects(subjectData || []);
+      setTeachers(teacherData || []);
+      setDepartments(deptData || []);
+      setMajors(majorData || []);
+      setSemesters(semesterData || []);
+    } catch (err: any) {
+      console.error('Lỗi khi tải dữ liệu options:', err);
+    }
+  };
 
-    const matchesDept = selectedDepartmentFilter === 'all' || (cls.majorId && majors.find(m => m.id === cls.majorId)?.departmentId === selectedDepartmentFilter);
-    const matchesMajor = selectedMajorFilter === 'all' || cls.majorId === selectedMajorFilter;
-    const matchesSub = selectedSubjectFilter === 'all' || cls.subjectId === selectedSubjectFilter;
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>(undefined);
+  const [selectedMajorId, setSelectedMajorId] = useState<number | undefined>(undefined);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | undefined>(undefined);
 
-    const status = getClassStatus(cls.startDate, cls.endDate);
-    const matchesStatus = selectedStatusFilter === 'all' || status === selectedStatusFilter;
+  const fetchClassSections = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await adminApi.getAllClassSections(page, pageSize, debouncedSearch, selectedSemesterId, selectedSubjectId, selectedDepartmentId, selectedMajorId);
+      setClassSections(response.content || []);
+      setTotalPages(response.totalPages || 0);
+      setTotalElements(response.totalElements || 0);
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi tải dữ liệu lớp học phần');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return matchesSearch && matchesDept && matchesMajor && matchesSub && matchesStatus;
-  });
+  useEffect(() => {
+    fetchOptions();
+  }, []);
+
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0); // Reset page on search
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [selectedSemesterId, selectedSubjectId, selectedDepartmentId, selectedMajorId]);
+
+  useEffect(() => {
+    fetchClassSections();
+  }, [page, pageSize, debouncedSearch, selectedSemesterId, selectedSubjectId, selectedDepartmentId, selectedMajorId]);
 
   const openAddModal = () => {
-    setEditingClass(null);
-
-    // default department & major selection: try to pick first department and its first major
-    const defaultDept = departments[0]?.id || '';
-    const majorsForDefaultDept = defaultDept ? getMajorsByDepartment(defaultDept) : [];
-    const defaultMajor = majorsForDefaultDept[0]?.id || '';
-    const defaultSubject = subjects.find(s => Array.isArray(s.majorIds) && s.majorIds!.includes(defaultMajor))?.id || '';
-
-    setFormData({
-      id: '',
-      departmentId: defaultDept,
-      majorId: defaultMajor,
-      subjectId: defaultSubject,
-      teacherId: activeTeachers[0]?.id || '',
-      dayOfWeek: 2,
-      timeSlot: '07:00 - 09:30',
+    setEditingItem(null);
+    setFormData({ 
+      departmentId: departments.length > 0 ? departments[0].id! : 0,
+      majorId: 0,
+      subjectId: subjects.length > 0 ? subjects[0].id! : 0,
+      teacherId: teachers.length > 0 ? teachers[0].id! : 0,
+      semesterId: semesters.length > 0 ? semesters[0].id! : 0,
+      sectionCode: '',
       room: '',
+      weekday: 2,
+      startTime: '07:00',
+      endTime: '09:00',
+      startDate: '',
+      endDate: '',
       capacity: 40,
-      startDate: '2026-06-01',
-      endDate: '2026-08-30'
+      status: 'ACTIVE'
     });
     setErrors({});
     setIsModalOpen(true);
   };
 
-  const openEditModal = (cls: ClassSection) => {
-    setEditingClass(cls);
-
-    // determine department from class.majorId
-    const majorObj = cls.majorId ? majors.find(m => m.id === cls.majorId) : undefined;
-    const departmentId = majorObj?.departmentId || '';
-
-    setFormData({
-      id: cls.id,
-      departmentId,
-      majorId: cls.majorId || '',
-      subjectId: cls.subjectId,
-      teacherId: cls.teacherId,
-      dayOfWeek: cls.dayOfWeek,
-      timeSlot: cls.timeSlot,
-      room: cls.room,
-      capacity: cls.capacity,
-      startDate: cls.startDate || '2026-06-01',
-      endDate: cls.endDate || '2026-08-30'
+  const openEditModal = (item: ClassSection) => {
+    setEditingItem(item);
+    setFormData({ 
+      departmentId: item.departmentId || 0,
+      majorId: item.majorId || 0,
+      subjectId: item.subjectId,
+      teacherId: item.teacherId,
+      semesterId: item.semesterId,
+      sectionCode: item.sectionCode,
+      room: item.room || '',
+      weekday: item.weekday,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      startDate: item.startDate,
+      endDate: item.endDate,
+      capacity: item.capacity,
+      status: item.status || 'ACTIVE'
     });
     setErrors({});
     setIsModalOpen(true);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-
-    // When changing department, reset major & subject
-    if (name === 'departmentId') {
-      const majorsForDept = value ? getMajorsByDepartment(value) : [];
-      const firstMajor = majorsForDept[0]?.id || '';
-      const firstSubjectForMajor = subjects.find(s => Array.isArray(s.majorIds) && s.majorIds!.includes(firstMajor))?.id || '';
-      setFormData(prev => ({ ...prev, departmentId: value, majorId: firstMajor, subjectId: firstSubjectForMajor }));
-      return;
-    }
-
-    if (name === 'majorId') {
-      // When changing major, reset subject to first available for that major
-      const firstSubject = subjects.find(s => Array.isArray(s.majorIds) && s.majorIds!.includes(value))?.id || '';
-      setFormData(prev => ({ ...prev, majorId: value, subjectId: firstSubject }));
-      return;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'capacity' || name === 'dayOfWeek' ? parseInt(value) || 0 : value
+    const { name, value, type } = e.target;
+    const isNumberField = ['departmentId', 'majorId', 'subjectId', 'teacherId', 'semesterId', 'weekday', 'capacity'].includes(name);
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: isNumberField ? Number(value) : value 
     }));
-  };
-
-  const handleTimeChange = (timeValue: string) => {
-    setFormData(prev => ({ ...prev, timeSlot: timeValue }));
   };
 
   const validate = (): boolean => {
     const tempErrors: Record<string, string> = {};
-    if (!formData.id.trim()) tempErrors.id = 'Mã lớp học phần không được để trống';
-    else if (!editingClass && classes.some(c => c.id.toLowerCase() === formData.id.toLowerCase().trim())) {
-      tempErrors.id = 'Mã lớp học phần này đã tồn tại';
-    }
-
-    if (!formData.departmentId) tempErrors.departmentId = 'Vui lòng chọn khoa';
-    if (!formData.majorId) tempErrors.majorId = 'Vui lòng chọn ngành áp dụng';
+    if (!formData.sectionCode.trim()) tempErrors.sectionCode = 'Mã lớp không được để trống';
     if (!formData.subjectId) tempErrors.subjectId = 'Vui lòng chọn môn học';
-    else {
-      // ensure the subject belongs to the chosen major
-      const subj = subjects.find(s => s.id === formData.subjectId);
-      if (subj && Array.isArray(subj.majorIds) && !subj.majorIds!.includes(formData.majorId)) {
-        tempErrors.subjectId = 'Môn học không thuộc ngành đã chọn';
-      }
+    if (!formData.teacherId) tempErrors.teacherId = 'Vui lòng chọn giảng viên';
+    if (!formData.departmentId) tempErrors.departmentId = 'Vui lòng chọn khoa';
+    if (!formData.semesterId) tempErrors.semesterId = 'Vui lòng chọn học kỳ';
+    if (!formData.startDate) tempErrors.startDate = 'Vui lòng chọn ngày bắt đầu';
+    if (!formData.endDate) tempErrors.endDate = 'Vui lòng chọn ngày kết thúc';
+    if (!formData.startTime) tempErrors.startTime = 'Vui lòng nhập giờ bắt đầu';
+    if (!formData.endTime) tempErrors.endTime = 'Vui lòng nhập giờ kết thúc';
+
+    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
+        tempErrors.endDate = 'Ngày kết thúc phải lớn hơn ngày bắt đầu';
     }
 
-    if (!formData.teacherId) tempErrors.teacherId = 'Vui lòng phân công giảng viên';
-    if (!formData.room.trim()) tempErrors.room = 'Phòng học không được để trống';
-    if (formData.capacity <= 5) tempErrors.capacity = 'Sĩ số tối đa phải lớn hơn 5';
-    if (!formData.startDate) tempErrors.startDate = 'Ngày bắt đầu không được để trống';
-    if (!formData.endDate) tempErrors.endDate = 'Ngày kết thúc không được để trống';
-    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
-      tempErrors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu';
+    if (formData.startTime && formData.endTime && formData.startTime > formData.endTime) {
+        tempErrors.endTime = 'Giờ kết thúc phải lớn hơn giờ bắt đầu';
     }
 
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
 
-  const getDayString = (day: number) => {
-    if (day === 8) return 'Chủ Nhật';
-    return `Thứ ${day}`;
-  };
-
-  const handleSave = (onSuccess: (msg: string) => void) => {
+  const handleSave = async (onSuccess: (msg: string) => void) => {
     if (!validate()) return;
-
-    const subjectObj = subjects.find(s => s.id === formData.subjectId);
-    const teacherObj = teachers.find(t => t.id === formData.teacherId);
-    const majorObj = majors.find(m => m.id === formData.majorId);
-
-    const scheduleStr = `${getDayString(formData.dayOfWeek)} (${formData.timeSlot})`;
-
-    const sectionPayload: any = {
-      id: formData.id.toUpperCase().trim(),
-      subjectId: formData.subjectId,
-      subjectName: subjectObj?.name || 'Môn học',
-      credits: subjectObj?.credits || 3,
-      teacherId: formData.teacherId,
-      teacherName: teacherObj?.name || 'Giảng viên',
-      schedule: scheduleStr,
-      dayOfWeek: formData.dayOfWeek,
-      timeSlot: formData.timeSlot,
-      room: formData.room.trim(),
-      capacity: formData.capacity,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-      majorId: formData.majorId,
-      majorName: majorObj?.name || ''
-    };
-
-    if (editingClass) {
-      updateClass(editingClass.id, { ...sectionPayload, studentIds: editingClass.studentIds });
-      onSuccess(`Đã cập nhật lớp học phần ${sectionPayload.id} thành công!`);
-    } else {
-      addClass(sectionPayload);
-      onSuccess(`Đã tạo lớp học phần ${sectionPayload.id} thành công!`);
-    }
-
-    setIsModalOpen(false);
-  };
-
-  const handleDelete = (id: string, onSuccess: (msg: string) => void) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa lớp học phần ${id}?`)) {
-      deleteClass(id);
-      onSuccess(`Đã xóa lớp học phần ${id} thành công!`);
+    
+    setIsLoading(true);
+    try {
+      if (editingItem && editingItem.id) {
+        await adminApi.updateClassSection(editingItem.id, formData);
+        onSuccess(`Đã cập nhật lớp học phần ${formData.sectionCode} thành công!`);
+      } else {
+        await adminApi.createClassSection(formData);
+        onSuccess(`Đã thêm mới lớp học phần ${formData.sectionCode} thành công!`);
+      }
+      setIsModalOpen(false);
+      fetchClassSections();
+    } catch (err: any) {
+      alert(err.message || 'Có lỗi xảy ra khi lưu dữ liệu');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Expose helper lists
-  const majorsForSelectedDept = selectedDepartmentFilter === 'all' ? majors : getMajorsByDepartment(selectedDepartmentFilter);
+  const handleDelete = async (id: number, code: string, onSuccess: (msg: string) => void) => {
+    if (confirm(`Bạn có chắc chắn muốn xóa lớp học phần ${code}?`)) {
+      setIsLoading(true);
+      try {
+        await adminApi.deleteClassSection(id);
+        onSuccess(`Đã xóa lớp học phần ${code} thành công!`);
+        fetchClassSections();
+      } catch (err: any) {
+        alert(err.message || 'Lỗi khi xóa lớp học phần');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleSelectChange = (name: string, value: string | number | undefined) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   return {
-    classes: filteredClasses,
+    classSections,
     subjects,
-    teachers: activeTeachers,
+    teachers,
     departments,
     majors,
-    majorsForSelectedDept,
-
-    // Form helpers
-    formData,
-    setFormData,
-    availableSubjectsForForm,
-
-    // Filters
+    semesters,
+    isLoading,
+    error,
     searchTerm,
     setSearchTerm,
-    selectedDepartmentFilter,
-    setSelectedDepartmentFilter,
-    selectedMajorFilter,
-    setSelectedMajorFilter,
-    selectedSubjectFilter,
-    setSelectedSubjectFilter,
-    selectedStatusFilter,
-    setSelectedStatusFilter,
-
-    // Modal & actions
+    selectedSemesterId,
+    setSelectedSemesterId,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+    selectedMajorId,
+    setSelectedMajorId,
+    selectedSubjectId,
+    setSelectedSubjectId,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalPages,
+    totalElements,
     isModalOpen,
     setIsModalOpen,
-    editingClass,
+    editingItem,
+    formData,
     errors,
     openAddModal,
     openEditModal,
     handleInputChange,
-    handleTimeChange,
+    handleSelectChange,
     handleSave,
     handleDelete
   };

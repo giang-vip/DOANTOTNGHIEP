@@ -4,57 +4,85 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useStore } from '../models/store';
+import axiosClient from '../api/axiosClient';
 import { User, Student, Teacher } from '../types';
 
 export function useAuthViewModel() {
-  const { users, students, teachers, updateUser } = useStore();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentProfile, setCurrentProfile] = useState<Student | Teacher | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize passwords database in localStorage if empty
+  // Khôi phục phiên đăng nhập khi load lại trang
   useEffect(() => {
-    const existingPwds = localStorage.getItem('hn_passwords');
-    if (!existingPwds) {
-      const initialPwds: Record<string, string> = {
-        admin: 'admin123',
-        gv_nguyenvana: '123',
-        gv_tranb: '123',
-        gv_lehoangc: '123',
-        sv_nguyenxuanmanh: '123',
-        sv_phamminhduc: '123',
-        sv_lethuthao: '123',
-        sv_tranhoanganh: '123',
-        sv_doanquocbao: '123'
-      };
-      localStorage.setItem('hn_passwords', JSON.stringify(initialPwds));
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchCurrentUser();
+    } else {
+      setIsLoading(false);
     }
   }, []);
 
-  // Load session from localStorage on mount
-  useEffect(() => {
-    const sessionUserId = localStorage.getItem('hn_session_user_id');
-    if (sessionUserId && users.length > 0) {
-      const user = users.find(u => u.id === sessionUserId);
-      if (user) {
-        setCurrentUser(user);
-        resolveProfile(user);
+  const fetchCurrentUser = async () => {
+    try {
+      // API trả về format ApiResponse<UserResponse>
+      // Đã config axios chặn bắt result
+      const userResponse: any = await axiosClient.get('/auth/me');
+      
+      let userRole: 'admin' | 'teacher' | 'student' = 'student';
+      if (userResponse.roles) {
+        const roleNames = userResponse.roles.map((r: any) => r.name);
+        if (roleNames.includes('ROLE_ADMIN') || roleNames.includes('ADMIN')) userRole = 'admin';
+        else if (roleNames.includes('ROLE_TEACHER') || roleNames.includes('TEACHER')) userRole = 'teacher';
+        else if (roleNames.includes('ROLE_STUDENT') || roleNames.includes('STUDENT')) userRole = 'student';
       }
-    }
-    setIsLoading(false);
-  }, [users, students, teachers]);
 
-  const resolveProfile = (user: User) => {
-    if (user.role === 'student') {
-      const profile = students.find(s => s.userId === user.id);
-      if (profile) setCurrentProfile(profile);
-    } else if (user.role === 'teacher') {
-      const profile = teachers.find(t => t.userId === user.id);
-      if (profile) setCurrentProfile(profile);
-    } else {
-      setCurrentProfile(null);
+      const mappedUser: User = {
+        id: String(userResponse.id),
+        username: userResponse.username,
+        role: userRole,
+        name: userResponse.fullName || userResponse.username,
+        email: userResponse.email || '',
+        phone: userResponse.phone || '',
+        avatar: userResponse.avatarUrl,
+        createdAt: userResponse.createdAt || new Date().toISOString()
+      };
+
+      setCurrentUser(mappedUser);
+      
+      // Tạm thời tạo profile fake để không crash UI các trang nội bộ
+      // Phase sau sẽ gọi API lấy thông tin Student/Teacher chi tiết
+      if (userRole === 'student') {
+        setCurrentProfile({
+          id: String(userResponse.id),
+          userId: String(userResponse.id),
+          name: mappedUser.name,
+          email: mappedUser.email,
+          classCode: 'N/A',
+          phone: mappedUser.phone || '',
+          status: 'active',
+          birthDate: '2000-01-01',
+          gender: 'Nam',
+          gpa: 0,
+          totalCredits: 0
+        } as Student);
+      } else if (userRole === 'teacher') {
+        setCurrentProfile({
+          id: String(userResponse.id),
+          userId: String(userResponse.id),
+          name: mappedUser.name,
+          email: mappedUser.email,
+          department: 'N/A',
+          phone: mappedUser.phone || '',
+          status: 'active'
+        } as Teacher);
+      }
+
+    } catch (err: any) {
+      console.error('Failed to fetch current user:', err);
+      localStorage.removeItem('token');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,89 +90,70 @@ export function useAuthViewModel() {
     setIsLoading(true);
     setError(null);
 
-    // Simulate small delay for realistic loading state
-    await new Promise(resolve => setTimeout(resolve, 600));
+    try {
+      const response: any = await axiosClient.post('/auth/login', { username, password });
+      
+      // Backend trả về AuthResponse { token, role, userInfo }
+      if (response && response.token) {
+        localStorage.setItem('token', response.token);
+        
+        let mappedRole: 'admin' | 'teacher' | 'student' = 'student';
+        if (response.role === 'ROLE_ADMIN' || response.role === 'ADMIN') mappedRole = 'admin';
+        if (response.role === 'ROLE_TEACHER' || response.role === 'TEACHER') mappedRole = 'teacher';
+        
+        const mappedUser: User = {
+          id: String(response.userInfo?.id || '1'),
+          username: response.userInfo?.username || username,
+          role: mappedRole,
+          name: response.userInfo?.fullName || username,
+          email: response.userInfo?.email || '',
+          createdAt: new Date().toISOString()
+        };
 
-    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase().trim());
-    if (!user) {
-      setError('Tài khoản không tồn tại trên hệ thống');
-      setIsLoading(false);
+        setCurrentUser(mappedUser);
+        
+        if (mappedRole === 'student') {
+          setCurrentProfile({ id: mappedUser.id, userId: mappedUser.id, name: mappedUser.name, status: 'active' } as any);
+        } else if (mappedRole === 'teacher') {
+          setCurrentProfile({ id: mappedUser.id, userId: mappedUser.id, name: mappedUser.name, status: 'active' } as any);
+        }
+
+        return mappedUser;
+      }
       return null;
-    }
-
-    // Check password
-    const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
-    const correctPassword = pwds[username.toLowerCase().trim()] || '123'; // default 123 for newly created accounts
-
-    if (password !== correctPassword) {
-      setError('Mật khẩu không chính xác');
-      setIsLoading(false);
+    } catch (err: any) {
+      setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
       return null;
+    } finally {
+      setIsLoading(false);
     }
-
-    // Success
-    localStorage.setItem('hn_session_user_id', user.id);
-    setCurrentUser(user);
-    resolveProfile(user);
-    setIsLoading(false);
-    return user;
   };
 
   const logout = () => {
-    localStorage.removeItem('hn_session_user_id');
+    localStorage.removeItem('token');
     setCurrentUser(null);
     setCurrentProfile(null);
     setError(null);
+    
+    // Gọi API logout ngầm
+    axiosClient.post('/auth/logout').catch(() => {});
   };
 
   const changePassword = async (oldPass: string, newPass: string): Promise<boolean> => {
-    if (!currentUser) return false;
-    
-    const username = currentUser.username;
-    const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
-    const currentPass = pwds[username] || '123';
-
-    if (oldPass !== currentPass) {
-      throw new Error('Mật khẩu hiện tại không chính xác');
+    try {
+      await axiosClient.put('/auth/change-password', {
+        oldPassword: oldPass,
+        newPassword: newPass
+      });
+      return true;
+    } catch (err: any) {
+      throw new Error(err.message || 'Lỗi đổi mật khẩu');
     }
-
-    pwds[username] = newPass;
-    localStorage.setItem('hn_passwords', JSON.stringify(pwds));
-    return true;
   };
 
-  const updateProfileInfo = (updates: { email?: string; phone?: string; name?: string; birthDate?: string; gender?: 'Nam' | 'Nữ' | 'Khác' }) => {
-    if (!currentUser) return;
-
-    // Sync back to User account
-    const userUpdates: Partial<User> = {};
-    if (updates.email) userUpdates.email = updates.email;
-    if (updates.phone) userUpdates.phone = updates.phone;
-    if (updates.name) userUpdates.name = updates.name;
-    if (Object.keys(userUpdates).length > 0) {
-      updateUser(currentUser.id, userUpdates);
-    }
-
-    // Update in actual database lists inside localStorage via trigger
-    if (currentUser.role === 'student' && currentProfile) {
-      const studentProfile = currentProfile as Student;
-      // We will perform localstorage edit directly and sync, or ideally let store handle it
-      const savedStudents = JSON.parse(localStorage.getItem('hn_students') || '[]');
-      const updatedStudents = savedStudents.map((s: Student) => 
-        s.id === studentProfile.id ? { ...s, ...updates } : s
-      );
-      localStorage.setItem('hn_students', JSON.stringify(updatedStudents));
-      // Trigger a window event or let react state update
-      setCurrentProfile({ ...studentProfile, ...updates });
-    } else if (currentUser.role === 'teacher' && currentProfile) {
-      const teacherProfile = currentProfile as Teacher;
-      const savedTeachers = JSON.parse(localStorage.getItem('hn_teachers') || '[]');
-      const updatedTeachers = savedTeachers.map((t: Teacher) => 
-        t.id === teacherProfile.id ? { ...t, ...updates } : t
-      );
-      localStorage.setItem('hn_teachers', JSON.stringify(updatedTeachers));
-      setCurrentProfile({ ...teacherProfile, ...updates });
-    }
+  const updateProfileInfo = (updates: any) => {
+    // API Cập nhật profile sẽ được xử lý sau ở Phase 2
+    console.log('Update profile not implemented in Phase 1 yet', updates);
   };
 
   return {

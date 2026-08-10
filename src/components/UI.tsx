@@ -344,3 +344,108 @@ export function TimePicker({ value, onChange, label }: TimePickerProps) {
     </div>
   );
 }
+
+// === PAGINATION ===
+interface PaginationProps {
+  currentPage: number; // 0-indexed
+  totalPages: number;
+  totalElements: number;
+  onPageChange: (page: number) => void;
+  pageSize?: number;
+}
+
+export function Pagination({ currentPage, totalPages, totalElements, onPageChange, pageSize = 10 }: PaginationProps) {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 0; i < totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(0, currentPage - 2);
+      let end = Math.min(totalPages - 1, currentPage + 2);
+      
+      if (currentPage < 2) {
+        end = 4;
+      }
+      if (currentPage > totalPages - 3) {
+        start = totalPages - 5;
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    return pages;
+  };
+
+  const startElement = currentPage * pageSize + 1;
+  const endElement = Math.min((currentPage + 1) * pageSize, totalElements);
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-white border-t border-slate-200/80">
+      <div className="flex-1 flex justify-between sm:hidden">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 0}
+          className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Trước
+        </button>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages - 1}
+          className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Sau
+        </button>
+      </div>
+      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm text-slate-700">
+            Hiển thị <span className="font-medium">{totalElements === 0 ? 0 : startElement}</span> đến <span className="font-medium">{endElement}</span> trong số <span className="font-medium">{totalElements}</span> kết quả
+          </p>
+        </div>
+        <div>
+          <nav className="relative z-0 inline-flex rounded-md shadow-xs -space-x-px" aria-label="Pagination">
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 0}
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Previous</span>
+              &larr;
+            </button>
+            
+            {getPageNumbers().map(pageNum => (
+              <button
+                key={pageNum}
+                onClick={() => onPageChange(pageNum)}
+                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                  currentPage === pageNum
+                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                    : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {pageNum + 1}
+              </button>
+            ))}
+            
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages - 1}
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Next</span>
+              &rarr;
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+}

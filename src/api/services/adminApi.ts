@@ -1,0 +1,245 @@
+import axiosClient from '../axiosClient';
+import { Department, DepartmentRequest } from '../../models/admin/Department';
+import { AcademicYear, AcademicYearRequest } from '../../models/admin/AcademicYear';
+import { Semester, SemesterRequest } from '../../models/admin/Semester';
+import { Subject, SubjectRequest } from '../../models/admin/Subject';
+import { ClassSection, ClassSectionRequest } from '../../models/admin/ClassSection';
+import { SchoolClass } from '../../models/admin/SchoolClass';
+import { Teacher, TeacherRequest } from '../../models/admin/Teacher';
+import { Major, MajorRequest } from '../../models/admin/Major';
+import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../models/admin/UserAdmin';
+import { Student, StudentRequest } from '../../models/admin/Student';
+import { Enrollment, EnrollmentRequest } from '../../models/admin/Enrollment';
+import { RegistrationPeriod, RegistrationPeriodRequest } from '../../models/admin/RegistrationPeriod';
+import { AdminDashboardStats } from '../../models/admin/AdminDashboard';
+import { PageResponse } from '../../models/PageResponse';
+
+export const adminApi = {
+  // === DASHBOARD API ===
+  getDashboardStats: async (): Promise<AdminDashboardStats> => {
+    return await axiosClient.get('/admin/dashboard/stats');
+  },
+
+  // === DEPARTMENT API ===
+  getAllDepartments: async (): Promise<Department[]> => {
+    const res: any = await axiosClient.get('/admin/departments?size=500');
+    return Array.isArray(res) ? res : (res.content || []);
+  },
+
+  getDepartmentById: async (id: number): Promise<Department> => {
+    return await axiosClient.get(`/admin/departments/${id}`);
+  },
+
+  createDepartment: async (data: DepartmentRequest): Promise<Department> => {
+    return await axiosClient.post('/admin/departments', data);
+  },
+
+  updateDepartment: async (id: number, data: DepartmentRequest): Promise<Department> => {
+    return await axiosClient.put(`/admin/departments/${id}`, data);
+  },
+
+  deleteDepartment: async (id: number): Promise<void> => {
+    return await axiosClient.delete(`/admin/departments/${id}`);
+  },
+
+  // === ACADEMIC YEAR API ===
+  getAllAcademicYears: async (): Promise<AcademicYear[]> => {
+    const res: any = await axiosClient.get('/admin/academic-years?size=500');
+    return Array.isArray(res) ? res : (res.content || []);
+  },
+
+  createAcademicYear: async (data: AcademicYearRequest): Promise<AcademicYear> => {
+    return await axiosClient.post('/admin/academic-years', data);
+  },
+
+  updateAcademicYear: async (id: number, data: AcademicYearRequest): Promise<AcademicYear> => {
+    return await axiosClient.put(`/admin/academic-years/${id}`, data);
+  },
+
+  deleteAcademicYear: async (id: number): Promise<void> => {
+    return await axiosClient.delete(`/admin/academic-years/${id}`);
+  },
+
+  // --- Semesters ---
+  getAllSemesters: async (): Promise<Semester[]> => {
+    const res: any = await axiosClient.get('/admin/semesters?size=500');
+    return Array.isArray(res) ? res : (res.content || []);
+  },
+  createSemester: async (data: SemesterRequest): Promise<Semester> => {
+    return await axiosClient.post('/admin/semesters', data);
+  },
+  updateSemester: async (id: number, data: SemesterRequest): Promise<Semester> => {
+    return await axiosClient.put(`/admin/semesters/${id}`, data);
+  },
+  deleteSemester: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/semesters/${id}`);
+  },
+
+  // --- Subjects ---
+  getAllSubjects: async (page = 0, size = 10, search?: string): Promise<PageResponse<Subject>> => {
+    let url = `/admin/subjects?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    const res: any = await axiosClient.get(url);
+    return res;
+  },
+  getAllSubjectsList: async (): Promise<Subject[]> => {
+    const res: any = await axiosClient.get('/admin/subjects?page=0&size=5000');
+    return res.content || [];
+  },
+  createSubject: async (data: SubjectRequest): Promise<Subject> => {
+    return await axiosClient.post('/admin/subjects', data);
+  },
+  updateSubject: async (id: number, data: SubjectRequest): Promise<Subject> => {
+    return await axiosClient.put(`/admin/subjects/${id}`, data);
+  },
+  deleteSubject: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/subjects/${id}`);
+  },
+
+  // --- Majors ---
+  getAllMajors: async (page = 0, size = 10, search?: string, departmentId?: number): Promise<PageResponse<Major>> => {
+    let url = `/admin/majors?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (departmentId) url += `&departmentId=${departmentId}`;
+    const res: any = await axiosClient.get(url);
+    return res;
+  },
+  getAllMajorsList: async (): Promise<Major[]> => {
+    const res: any = await axiosClient.get('/admin/majors?page=0&size=5000');
+    return res.content || [];
+  },
+  createMajor: async (data: MajorRequest): Promise<Major> => {
+    return await axiosClient.post('/admin/majors', data);
+  },
+  updateMajor: async (id: number, data: MajorRequest): Promise<Major> => {
+    return await axiosClient.put(`/admin/majors/${id}`, data);
+  },
+  deleteMajor: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/majors/${id}`);
+  },
+
+  // --- Users ---
+  getAllUsers: async (page = 0, size = 10, search?: string, roleName?: string, status?: string): Promise<PageResponse<UserAdmin>> => {
+    let url = `/admin/users?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (roleName) url += `&roleName=${encodeURIComponent(roleName)}`;
+    if (status) url += `&status=${status}`;
+    const res: any = await axiosClient.get(url);
+    return res;
+  },
+  
+  // Dùng cho Combobox / Dropdown (Lấy số lượng lớn, không phân trang)
+  getAllUsersList: async (): Promise<UserAdmin[]> => {
+    const res: any = await axiosClient.get('/admin/users?page=0&size=5000');
+    return res.content || [];
+  },
+
+  createUser: async (data: UserCreationRequest): Promise<UserAdmin> => {
+    return await axiosClient.post('/admin/users', data);
+  },
+  updateUser: async (id: number, data: UserUpdateRequest): Promise<UserAdmin> => {
+    return await axiosClient.put(`/admin/users/${id}`, data);
+  },
+  deleteUser: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/users/${id}`);
+  },
+
+  // --- Teachers ---
+  getAllTeachers: async (page = 0, size = 10, search?: string, departmentId?: number): Promise<PageResponse<Teacher>> => {
+    let url = `/admin/teachers?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (departmentId) url += `&departmentId=${departmentId}`;
+    const res: any = await axiosClient.get(url);
+    return res;
+  },
+  getAllTeachersList: async (): Promise<Teacher[]> => {
+    const res: any = await axiosClient.get('/admin/teachers?page=0&size=5000');
+    return res.content || [];
+  },
+  createTeacher: async (data: TeacherRequest): Promise<Teacher> => {
+    return await axiosClient.post('/admin/teachers', data);
+  },
+  updateTeacher: async (id: number, data: TeacherRequest): Promise<Teacher> => {
+    return await axiosClient.put(`/admin/teachers/${id}`, data);
+  },
+  deleteTeacher: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/teachers/${id}`);
+  },
+
+  // --- Students ---
+  getAllStudents: async (page = 0, size = 10, search?: string, departmentId?: number, majorId?: number, classId?: number): Promise<PageResponse<Student>> => {
+    let url = `/admin/students?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (departmentId) url += `&departmentId=${departmentId}`;
+    if (majorId) url += `&majorId=${majorId}`;
+    if (classId) url += `&classId=${classId}`;
+    const res: any = await axiosClient.get(url);
+    return res;
+  },
+  createStudent: async (data: StudentRequest): Promise<Student> => {
+    return await axiosClient.post('/admin/students', data);
+  },
+  updateStudent: async (id: number, data: StudentRequest): Promise<Student> => {
+    return await axiosClient.put(`/admin/students/${id}`, data);
+  },
+  deleteStudent: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/students/${id}`);
+  },
+
+  // --- School Classes ---
+  getAllSchoolClasses: async (): Promise<SchoolClass[]> => {
+    const res: any = await axiosClient.get('/admin/classes?size=500');
+    return Array.isArray(res) ? res : (res.content || []);
+  },
+
+  // --- Class Sections ---
+  getAllClassSections: async (page = 0, size = 10, search?: string, semesterId?: number, subjectId?: number, departmentId?: number, majorId?: number): Promise<PageResponse<ClassSection>> => {
+    let url = `/admin/class-sections?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (semesterId) url += `&semesterId=${semesterId}`;
+    if (subjectId) url += `&subjectId=${subjectId}`;
+    if (departmentId) url += `&departmentId=${departmentId}`;
+    if (majorId) url += `&majorId=${majorId}`;
+    const res: any = await axiosClient.get(url);
+    return res;
+  },
+  getAllClassSectionsList: async (): Promise<ClassSection[]> => {
+    const res: any = await axiosClient.get('/admin/class-sections?page=0&size=5000');
+    return res.content || [];
+  },
+  createClassSection: async (data: ClassSectionRequest): Promise<ClassSection> => {
+    return await axiosClient.post('/admin/class-sections', data);
+  },
+  updateClassSection: async (id: number, data: ClassSectionRequest): Promise<ClassSection> => {
+    return await axiosClient.put(`/admin/class-sections/${id}`, data);
+  },
+  deleteClassSection: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/class-sections/${id}`);
+  },
+
+  // --- Enrollments ---
+  getAllEnrollments: async (): Promise<Enrollment[]> => {
+    const res: any = await axiosClient.get('/admin/enrollments?size=1000');
+    return res.content || [];
+  },
+  createEnrollment: async (data: EnrollmentRequest): Promise<Enrollment> => {
+    return await axiosClient.post('/admin/enrollments', data);
+  },
+  updateEnrollment: async (id: number, data: EnrollmentRequest): Promise<Enrollment> => {
+    return await axiosClient.put(`/admin/enrollments/${id}`, data);
+  },
+  deleteEnrollment: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/enrollments/${id}`);
+  },
+
+  // --- Registration Periods ---
+  getAllRegistrationPeriods: async (): Promise<RegistrationPeriod[]> => {
+    return await axiosClient.get('/admin/config/registration-period');
+  },
+  createOrUpdateRegistrationPeriod: async (data: RegistrationPeriodRequest): Promise<RegistrationPeriod> => {
+    return await axiosClient.post('/admin/config/registration-period', data);
+  },
+  toggleRegistrationPeriod: async (id: number, isOpen: boolean): Promise<void> => {
+    await axiosClient.patch(`/admin/config/registration-period/${id}/toggle?isOpen=${isOpen}`);
+  },
+};

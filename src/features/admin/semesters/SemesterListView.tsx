@@ -1,29 +1,22 @@
 import React from 'react';
-import { useMajorListViewModel } from './useMajorListViewModel';
-import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../components/UI';
+import { useSemesterListViewModel } from './useSemesterListViewModel';
+import { Card, Table, Modal, FormInput } from '../../../components/UI';
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { Major } from '../../../models/admin/Major';
+import { Semester } from '../../../models/admin/Semester';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
-interface MajorListViewProps {
+interface SemesterListViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function MajorListView({ triggerToast }: MajorListViewProps) {
+export function SemesterListView({ triggerToast }: SemesterListViewProps) {
   const {
-    majors,
-    departments,
+    semesters,
+    academicYears,
     isLoading,
     error,
     searchTerm,
     setSearchTerm,
-    selectedDepartmentId,
-    setSelectedDepartmentId,
-    page,
-    setPage,
-    pageSize,
-    totalPages,
-    totalElements,
     isModalOpen,
     setIsModalOpen,
     editingItem,
@@ -34,7 +27,7 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
     handleInputChange,
     handleSave,
     handleDelete
-  } = useMajorListViewModel();
+  } = useSemesterListViewModel();
 
   const handleSaveAction = () => {
     handleSave((msg) => triggerToast(msg, 'success'));
@@ -42,28 +35,30 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
 
   const columns = [
     {
-      header: 'Mã Ngành',
-      accessor: (item: Major) => <span className="font-mono font-bold text-slate-800">{item.code}</span>
+      header: 'Năm Học',
+      accessor: (item: Semester) => <span className="font-medium text-slate-800">{item.academicYearCode}</span>
     },
     {
-      header: 'Tên Ngành',
-      accessor: (item: Major) => <span className="font-medium text-slate-800">{item.name}</span>
+      header: 'Mã Học Kỳ',
+      accessor: (item: Semester) => <span className="font-mono font-bold text-slate-800">{item.code}</span>
     },
     {
-      header: 'Khoa Quản Lý',
-      accessor: (item: Major) => <span className="text-sm text-slate-600">{item.departmentName}</span>
+      header: 'Tên Học Kỳ',
+      accessor: (item: Semester) => <span className="font-medium text-slate-800">{item.name}</span>
     },
     {
-      header: 'Trạng Thái',
-      accessor: (item: Major) => (
-        <Badge variant={item.status === 'ACTIVE' ? 'success' : 'danger'}>
-          {item.status === 'ACTIVE' ? 'Đang tuyển sinh' : 'Ngừng tuyển sinh'}
-        </Badge>
+      header: 'Thời gian',
+      accessor: (item: Semester) => <span className="text-sm text-slate-600">{item.startDate} đến {item.endDate}</span>
+    },
+    {
+      header: 'Trạng thái',
+      accessor: (item: Semester) => (
+        item.isCurrent ? <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">Hiện tại</span> : <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-xs">Không</span>
       )
     },
     {
       header: 'Thao Tác',
-      accessor: (item: Major) => (
+      accessor: (item: Semester) => (
         <div className="flex gap-2">
           <button
             onClick={() => openEditModal(item)}
@@ -89,8 +84,8 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Ngành Học</h2>
-          <p className="text-xs text-slate-500">Xem và hiệu chỉnh danh mục các ngành đào tạo</p>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Học Kỳ</h2>
+          <p className="text-xs text-slate-500">Xem và hiệu chỉnh các học kỳ trong năm học</p>
         </div>
         <button
           onClick={openAddModal}
@@ -98,7 +93,7 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
           className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-70"
         >
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Thêm Ngành Học
+          Thêm Học Kỳ Mới
         </button>
       </div>
 
@@ -113,7 +108,7 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
       )}
 
       <Card className="p-4 flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative w-full sm:w-1/3">
+        <div className="relative w-full sm:max-w-xs">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
             <Search className="h-4 w-4" />
           </div>
@@ -122,47 +117,27 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             disabled={isLoading}
-            placeholder="Tìm theo mã hoặc tên ngành..."
+            placeholder="Tìm theo mã hoặc tên học kỳ..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
-          />
-        </div>
-        <div className="w-full sm:w-1/3">
-          <SearchableSelect
-            name="departmentFilter"
-            value={selectedDepartmentId}
-            onChange={(val) => setSelectedDepartmentId(val ? Number(val) : undefined)}
-            disabled={isLoading}
-            options={departments.map(d => ({ value: d.id!, label: d.name }))}
-            placeholder="-- Tất cả Khoa --"
-            allowClear
           />
         </div>
       </Card>
 
-      <Card className="relative min-h-[300px] flex flex-col">
-        {isLoading && majors.length === 0 ? (
+      <Card className="relative min-h-[300px]">
+        {isLoading && semesters.length === 0 ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm rounded-xl">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-2" />
-            <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu ngành học...</p>
+            <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu học kỳ...</p>
           </div>
         ) : (
-          <div className="flex-1">
-            <Table data={majors} columns={columns} emptyMessage="Không có ngành học nào." />
-          </div>
+          <Table data={semesters} columns={columns} emptyMessage="Không có học kỳ nào." />
         )}
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalElements={totalElements}
-          onPageChange={setPage}
-          pageSize={pageSize}
-        />
       </Card>
 
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingItem ? 'Cập Nhật Ngành Học' : 'Thêm Ngành Học Mới'}
+        title={editingItem ? 'Cập Nhật Học Kỳ' : 'Thêm Học Kỳ Mới'}
         footer={
           <>
             <button
@@ -184,66 +159,75 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
         }
       >
         <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Năm học</label>
+            <SearchableSelect
+              name="academicYearId"
+              value={formData.academicYearId}
+              onChange={(val) => handleInputChange({ target: { name: 'academicYearId', value: Number(val) } } as any)}
+              disabled={isLoading}
+              options={academicYears.map(ay => ({ value: ay.id!, label: ay.code }))}
+              placeholder="-- Chọn năm học --"
+              error={!!errors.academicYearId}
+            />
+            {errors.academicYearId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.academicYearId}</p>}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <FormInput
-              label="Mã Ngành"
+              label="Mã Học Kỳ"
               name="code"
               value={formData.code}
               onChange={handleInputChange}
               disabled={isLoading}
-              placeholder="VD: CNTT"
+              placeholder="Ví dụ: HK1, HK2..."
               error={errors.code}
             />
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Trạng Thái</label>
-              <SearchableSelect
-                name="status"
-                value={formData.status}
-                onChange={(val) => handleInputChange({ target: { name: 'status', value: val } } as any)}
-                disabled={isLoading}
-                options={[
-                  { value: 'ACTIVE', label: 'Đang tuyển sinh' },
-                  { value: 'INACTIVE', label: 'Ngừng tuyển sinh' }
-                ]}
-              />
-            </div>
-          </div>
-
-          <FormInput
-            label="Tên Ngành Học"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            disabled={isLoading}
-            placeholder="VD: Công nghệ thông tin"
-            error={errors.name}
-          />
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
-            <SearchableSelect
-              name="departmentId"
-              value={formData.departmentId}
-              onChange={(val) => handleInputChange({ target: { name: 'departmentId', value: Number(val) } } as any)}
-              disabled={isLoading}
-              options={departments.map(dept => ({ value: dept.id!, label: dept.name }))}
-              placeholder="-- Chọn khoa --"
-              error={!!errors.departmentId}
-            />
-            {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Mô Tả (Tùy chọn)</label>
-            <textarea
-              name="description"
-              value={formData.description}
+            <FormInput
+              label="Tên Học Kỳ"
+              name="name"
+              value={formData.name}
               onChange={handleInputChange}
               disabled={isLoading}
-              rows={3}
-              placeholder="Nhập mô tả về ngành học..."
-              className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
+              placeholder="Ví dụ: Học kỳ 1..."
+              error={errors.name}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              label="Ngày bắt đầu"
+              name="startDate"
+              type="date"
+              value={formData.startDate}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              error={errors.startDate}
+            />
+            <FormInput
+              label="Ngày kết thúc"
+              name="endDate"
+              type="date"
+              value={formData.endDate}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              error={errors.endDate}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 mt-4">
+            <input
+              type="checkbox"
+              id="isCurrentSemester"
+              name="isCurrent"
+              checked={formData.isCurrent}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <label htmlFor="isCurrentSemester" className="text-sm font-medium text-slate-700">
+              Đặt làm học kỳ hiện tại
+            </label>
           </div>
         </div>
       </Modal>

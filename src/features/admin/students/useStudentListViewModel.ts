@@ -1,113 +1,150 @@
 import React, { useState, useEffect } from 'react';
-import { useStore } from '../../../models/store';
-import { Student, StudentStatus } from '../../../types';
+import { adminApi } from '../../../api/services/adminApi';
+import { Student, StudentRequest } from '../../../models/admin/Student';
+import { Major } from '../../../models/admin/Major';
+import { Department } from '../../../models/admin/Department';
+import { SchoolClass } from '../../../models/admin/SchoolClass';
+import { UserAdmin } from '../../../models/admin/UserAdmin';
 
 export function useStudentListViewModel() {
-  const { students, addStudent, updateStudent, deleteStudent, departments, majors } = useStore();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [majors, setMajors] = useState<Major[]>([]);
+  const [schoolClasses, setSchoolClasses] = useState<SchoolClass[]>([]);
+  const [users, setUsers] = useState<UserAdmin[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState('all');
-  const [selectedMajorFilter, setSelectedMajorFilter] = useState('all');
-  const [selectedClassFilter, setSelectedClassFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editingItem, setEditingItem] = useState<Student | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fetch passwords database from localStorage to map passwords
-  const [passwordsMap, setPasswordsMap] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<StudentRequest>({
+    userId: 0,
+    studentCode: '',
+    fullName: '',
+    gender: 'Nam',
+    dateOfBirth: '',
+    address: '',
+    majorId: 0,
+    classId: 0,
+    status: 'ACTIVE'
+  });
+
+  const [departments, setDepartments] = useState<Department[]>([]);
+
+  const fetchOptions = async () => {
+    try {
+      const [deptData, majorData, classData, userData] = await Promise.all([
+        adminApi.getAllDepartments(),
+        adminApi.getAllMajorsList(),
+        adminApi.getAllSchoolClasses(),
+        adminApi.getAllUsersList()
+      ]);
+      setDepartments(deptData || []);
+      setMajors(majorData || []);
+      setSchoolClasses(classData || []);
+      
+      const studentUsers = (userData || []).filter(u => 
+        u.roles?.some(r => r.name === 'STUDENT' || r.name === 'ROLE_STUDENT')
+      );
+      setUsers(studentUsers);
+    } catch (err: any) {
+      console.error('Lỗi tải dữ liệu options sinh viên', err);
+    }
+  };
+
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>(undefined);
+  const [selectedMajorId, setSelectedMajorId] = useState<number | undefined>(undefined);
+  const [selectedClassId, setSelectedClassId] = useState<number | undefined>(undefined);
+
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   useEffect(() => {
-    const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
-    setPasswordsMap(pwds);
-  }, [isModalOpen]);
+    let isActive = true;
 
-  const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    email: '',
-    phone: '',
-    classCode: '',
-    birthDate: '',
-    gender: 'Nam' as 'Nam' | 'Nữ' | 'Khác',
-    status: 'active' as StudentStatus,
-    password: '123',
-    departmentId: '',
-    majorId: ''
-  });
+    const fetchStudents = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await adminApi.getAllStudents(page, pageSize, debouncedSearch, selectedDepartmentId, selectedMajorId, selectedClassId);
+        if (isActive) {
+          setStudents(response.content || []);
+          setTotalPages(response.totalPages || 0);
+          setTotalElements(response.totalElements || 0);
+        }
+      } catch (err: any) {
+        if (isActive) {
+          setError(err.message || 'Lỗi khi tải dữ liệu sinh viên');
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
 
-  // Extract unique class codes for filter dropdown
-  const uniqueClassCodes = Array.from(new Set(students.map(s => s.classCode)));
+    fetchStudents();
 
-  const getStudentPassword = (studentId: string) => {
-    const username = studentId.toLowerCase();
-    return passwordsMap[username] || '123';
-  };
+    return () => {
+      isActive = false;
+    };
+  }, [page, pageSize, debouncedSearch, selectedDepartmentId, selectedMajorId, selectedClassId]);
 
-  const resetStudentPassword = (studentId: string, onSuccess: (msg: string) => void) => {
-    const username = studentId.toLowerCase();
-    const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
-    pwds[username] = '123';
-    localStorage.setItem('hn_passwords', JSON.stringify(pwds));
-    setPasswordsMap(pwds);
-    onSuccess(`Đã đặt lại mật khẩu cho sinh viên ${studentId} về mặc định "123"!`);
-  };
+  useEffect(() => {
+    fetchOptions();
+  }, []);
 
-  const filteredStudents = students.filter(s => {
-    const matchesSearch =
-      s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.phone.toLowerCase().includes(searchTerm.toLowerCase());
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0); // Reset page on search
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
-    const matchesClass = selectedClassFilter === 'all' || s.classCode === selectedClassFilter;
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [selectedDepartmentId, selectedMajorId, selectedClassId]);
 
-    let matchesDepartment = true;
-    if (selectedDepartmentFilter !== 'all') {
-      const maj = majors.find(m => m.id === s.majorId);
-      matchesDepartment = !!maj && maj.departmentId === selectedDepartmentFilter;
-    }
-
-    const matchesMajor = selectedMajorFilter === 'all' || s.majorId === selectedMajorFilter;
-
-    return matchesSearch && matchesClass && matchesDepartment && matchesMajor;
-  });
+  const filteredItems = students; // Đã filter qua API
 
   const openAddModal = () => {
-    setEditingStudent(null);
-    setFormData({
-      id: '',
-      name: '',
-      email: '',
-      phone: '',
-      classCode: 'K64-CNTT',
-      birthDate: '2005-01-01',
+    setEditingItem(null);
+    setFormData({ 
+      userId: 0,
+      studentCode: '',
+      fullName: '',
       gender: 'Nam',
-      status: 'active',
-      password: '123',
-      departmentId: '',
-      majorId: ''
+      dateOfBirth: '',
+      address: '',
+      majorId: majors.length > 0 ? majors[0].id! : 0,
+      classId: 0,
+      status: 'ACTIVE'
     });
     setErrors({});
     setIsModalOpen(true);
   };
 
-  const openEditModal = (s: Student) => {
-    setEditingStudent(s);
-    const pwd = getStudentPassword(s.id);
-    // Determine departmentId from student's major if available
-    const major = majors.find(m => m.id === s.majorId);
-    setFormData({
-      id: s.id,
-      name: s.name,
-      email: s.email,
-      phone: s.phone,
-      classCode: s.classCode,
-      birthDate: s.birthDate,
-      gender: s.gender,
-      status: s.status,
-      password: pwd,
-      departmentId: major ? major.departmentId : '',
-      majorId: s.majorId || ''
+  const openEditModal = (item: Student) => {
+    setEditingItem(item);
+    setFormData({ 
+      userId: item.userId || 0,
+      studentCode: item.studentCode,
+      fullName: item.fullName,
+      gender: item.gender || 'Nam',
+      dateOfBirth: item.dateOfBirth || '',
+      address: item.address || '',
+      majorId: item.majorId || 0,
+      classId: item.classId || 0,
+      status: item.status || 'ACTIVE'
     });
     setErrors({});
     setIsModalOpen(true);
@@ -115,130 +152,118 @@ export function useStudentListViewModel() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    // When department changes, reset major selection
-    if (name === 'departmentId') {
-      setFormData(prev => ({ ...prev, departmentId: value, majorId: '' }));
-    } else if (name === 'majorId') {
-      setFormData(prev => ({ ...prev, majorId: value }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: (name === 'majorId' || name === 'classId' || name === 'userId') ? Number(value) : value 
+    }));
+    
+    // Auto-fill full name and gender when a user is selected
+    if (name === 'userId') {
+      const selectedUser = users.find(u => u.id === Number(value));
+      if (selectedUser) {
+        setFormData(prev => ({
+          ...prev,
+          fullName: selectedUser.fullName,
+          gender: selectedUser.gender || 'Nam'
+        }));
+      }
     }
   };
 
   const validate = (): boolean => {
     const tempErrors: Record<string, string> = {};
-    if (!formData.id.trim()) tempErrors.id = 'Mã số sinh viên (MSSV) không được trống';
-    else if (!editingStudent && students.some(s => s.id.toLowerCase() === formData.id.toLowerCase().trim())) {
-      tempErrors.id = 'Mã số sinh viên này đã tồn tại';
-    }
-    if (!formData.name.trim()) tempErrors.name = 'Họ và tên không được để trống';
-    if (!formData.email.trim() || !formData.email.includes('@')) tempErrors.email = 'Email không đúng định dạng';
-    if (!formData.phone.trim()) tempErrors.phone = 'Số điện thoại không được để trống';
-    if (!formData.classCode.trim()) tempErrors.classCode = 'Lớp khóa học không được để trống';
-    if (!formData.birthDate) tempErrors.birthDate = 'Vui lòng điền ngày sinh';
-
-    // Require department and major to be selected and that major belongs to department
-    if (!formData.departmentId) tempErrors.departmentId = 'Vui lòng chọn khoa';
-    if (!formData.majorId) tempErrors.majorId = 'Vui lòng chọn ngành';
-    if (formData.departmentId && formData.majorId) {
-      const maj = majors.find(m => m.id === formData.majorId);
-      if (!maj || maj.departmentId !== formData.departmentId) {
-        tempErrors.majorId = 'Ngành chọn không thuộc khoa đã chọn';
-      }
-    }
+    if (!formData.userId) tempErrors.userId = 'Vui lòng chọn tài khoản hệ thống';
+    if (!formData.studentCode.trim()) tempErrors.studentCode = 'Mã sinh viên không được để trống';
+    if (!formData.fullName.trim()) tempErrors.fullName = 'Họ tên không được để trống';
+    if (!formData.majorId) tempErrors.majorId = 'Vui lòng chọn ngành học';
 
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
 
-  const handleSave = (onSuccess: (msg: string) => void) => {
+  const handleSave = async (onSuccess: (msg: string) => void) => {
     if (!validate()) return;
-
-    if (editingStudent) {
-      updateStudent(editingStudent.id, {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        classCode: formData.classCode.trim(),
-        birthDate: formData.birthDate,
-        gender: formData.gender,
-        status: formData.status,
-        majorId: formData.majorId || undefined
-      });
-
-      // Update password inside passwords map
-      const username = editingStudent.id.toLowerCase();
-      const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
-      pwds[username] = formData.password;
-      localStorage.setItem('hn_passwords', JSON.stringify(pwds));
-
-      onSuccess(`Đã cập nhật sinh viên ${formData.name} thành công!`);
-    } else {
-      addStudent({
-        id: formData.id.toUpperCase().trim(),
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        classCode: formData.classCode.toUpperCase().trim(),
-        birthDate: formData.birthDate,
-        gender: formData.gender,
-        status: formData.status,
-        majorId: formData.majorId || undefined
-      });
-
-      // Write password in localStorage
-      const username = formData.id.toLowerCase().trim();
-      const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
-      pwds[username] = formData.password;
-      localStorage.setItem('hn_passwords', JSON.stringify(pwds));
-
-      onSuccess(`Đã thêm mới sinh viên ${formData.name} thành công!`);
-    }
-
-    setIsModalOpen(false);
-  };
-
-  const toggleStudentStatus = (id: string, currentStatus: StudentStatus, onSuccess: (msg: string) => void) => {
-    const newStatus: StudentStatus = currentStatus === 'active' ? 'on_leave' : 'active';
-    const actionLabel = newStatus === 'active' ? 'mở khóa' : 'khóa';
-    if (confirm(`Bạn có chắc muốn ${actionLabel} sinh viên ${id}?`)) {
-      updateStudent(id, { status: newStatus });
-      onSuccess(`Đã ${actionLabel} tài khoản sinh viên ${id} thành công!`);
+    
+    setIsLoading(true);
+    try {
+      if (editingItem && editingItem.id) {
+        await adminApi.updateStudent(editingItem.id, formData);
+        onSuccess(`Đã cập nhật hồ sơ sinh viên ${formData.fullName} thành công!`);
+      } else {
+        await adminApi.createStudent(formData);
+        onSuccess(`Đã tạo hồ sơ sinh viên ${formData.fullName} thành công!`);
+      }
+      setIsModalOpen(false);
+      fetchStudents();
+    } catch (err: any) {
+      alert(err.message || 'Có lỗi xảy ra khi lưu hồ sơ sinh viên');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const deleteStudentAccount = (id: string, onSuccess: (msg: string) => void) => {
-    if (confirm(`Bạn có chắc muốn xóa/khóa tài khoản sinh viên ${id}?`)) {
-      deleteStudent(id);
-      onSuccess(`Đã khóa tài khoản sinh viên ${id} thành công!`);
+  const handleDelete = async (id: number, name: string, onSuccess: (msg: string) => void) => {
+    if (confirm(`Bạn có chắc chắn muốn xóa hồ sơ sinh viên ${name}?`)) {
+      setIsLoading(true);
+      try {
+        await adminApi.deleteStudent(id);
+        onSuccess(`Đã xóa hồ sơ sinh viên ${name} thành công!`);
+        fetchStudents();
+      } catch (err: any) {
+        alert(err.message || 'Lỗi khi xóa hồ sơ');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleSelectChange = (name: string, value: string | number | undefined) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'userId' && value !== undefined) {
+      const selectedUser = users.find(u => u.id === Number(value));
+      if (selectedUser) {
+        setFormData(prev => ({
+          ...prev,
+          userId: Number(value),
+          fullName: selectedUser.fullName,
+          gender: selectedUser.gender || 'Nam'
+        }));
+      }
     }
   };
 
   return {
-    students: filteredStudents,
-    classCodes: uniqueClassCodes,
+    students: filteredItems,
     departments,
     majors,
+    schoolClasses,
+    users,
+    isLoading,
+    error,
     searchTerm,
     setSearchTerm,
-    selectedDepartmentFilter,
-    setSelectedDepartmentFilter,
-    selectedMajorFilter,
-    setSelectedMajorFilter,
-    selectedClassFilter,
-    setSelectedClassFilter,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+    selectedMajorId,
+    setSelectedMajorId,
+    selectedClassId,
+    setSelectedClassId,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    totalPages,
+    totalElements,
     isModalOpen,
     setIsModalOpen,
-    editingStudent,
+    editingItem,
     formData,
     errors,
     openAddModal,
     openEditModal,
     handleInputChange,
+    handleSelectChange,
     handleSave,
-    toggleStudentStatus,
-    deleteStudentAccount,
-    getStudentPassword,
-    resetStudentPassword
+    handleDelete
   };
 }

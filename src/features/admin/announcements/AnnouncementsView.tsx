@@ -2,6 +2,7 @@ import React from 'react';
 import { useAnnouncementsViewModel } from './useAnnouncementsViewModel';
 import { Card, FormInput, Badge } from '../../../components/UI';
 import { Send, Bell, Trash2, Mail } from 'lucide-react';
+import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface AnnouncementsViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
@@ -47,15 +48,15 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nhóm Người Nhận</label>
-              <select
+              <SearchableSelect
                 value={recipientGroup}
-                onChange={(e: any) => setRecipientGroup(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
-              >
-                <option value="all">Tất cả mọi người</option>
-                <option value="teachers">Chỉ giảng viên</option>
-                <option value="students">Chỉ sinh viên</option>
-              </select>
+                onChange={(val) => setRecipientGroup(String(val) as any)}
+                options={[
+                  { value: 'all', label: 'Tất cả mọi người' },
+                  { value: 'teachers', label: 'Chỉ giảng viên' },
+                  { value: 'students', label: 'Chỉ sinh viên' }
+                ]}
+              />
             </div>
 
             <div>

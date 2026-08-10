@@ -1,7 +1,9 @@
 import React from 'react';
 import { useSubjectListViewModel } from './useSubjectListViewModel';
-import { Card, Table, Modal, FormInput, Badge } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, BookOpen } from 'lucide-react';
+import { Card, Table, Modal, FormInput, Pagination } from '../../../components/UI';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Subject } from '../../../models/admin/Subject';
+import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface SubjectListViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
@@ -11,14 +13,18 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
   const {
     subjects,
     departments,
-    majors,
+    isLoading,
+    error,
     searchTerm,
     setSearchTerm,
-    selectedMajorFilter,
-    setSelectedMajorFilter,
+    page,
+    setPage,
+    pageSize,
+    totalPages,
+    totalElements,
     isModalOpen,
     setIsModalOpen,
-    editingSubject,
+    editingItem,
     formData,
     errors,
     openAddModal,
@@ -35,55 +41,35 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
   const columns = [
     {
       header: 'Mã Môn Học',
-      accessor: (sub: any) => <span className="font-mono font-bold text-slate-800">{sub.id}</span>
+      accessor: (item: Subject) => <span className="font-mono font-bold text-slate-800">{item.code}</span>
     },
     {
       header: 'Tên Môn Học',
-      accessor: (sub: any) => (
-        <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded bg-slate-50 flex items-center justify-center text-slate-400">
-            <BookOpen className="h-3.5 w-3.5" />
-          </div>
-          <span className="font-semibold text-slate-800">{sub.name}</span>
-        </div>
-      )
+      accessor: (item: Subject) => <span className="font-medium text-slate-800">{item.name}</span>
     },
     {
       header: 'Số Tín Chỉ',
-      accessor: (sub: any) => <Badge variant="info">{sub.credits} tín chỉ</Badge>
+      accessor: (item: Subject) => <span className="font-medium text-blue-600">{item.credits}</span>
     },
     {
-      header: 'Ngành áp dụng',
-      accessor: (sub: any) => {
-        const majorsList: string[] = sub.majorIds || [];
-        if (majorsList.length === 0) return <span className="text-xs text-slate-500">—</span>;
-        const display = majorsList.slice(0, 2).map((m: string) => {
-          const maj = majors.find((x: any) => x.id === m);
-          return maj ? (
-            <span key={m} className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium mr-1">
-              {maj.id}
-            </span>
-          ) : (
-            <span key={m} className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 text-xs font-medium mr-1">{m}</span>
-          );
-        });
-        const extra = majorsList.length > 2 ? <span className="text-xs text-slate-500">+{majorsList.length - 2}</span> : null;
-        return <div className="flex items-center">{display}{extra}</div>;
-      }
+      header: 'Khoa Quản Lý',
+      accessor: (item: Subject) => <span className="text-sm text-slate-600">{item.departmentName}</span>
     },
     {
       header: 'Thao Tác',
-      accessor: (sub: any) => (
+      accessor: (item: Subject) => (
         <div className="flex gap-2">
           <button
-            onClick={() => openEditModal(sub)}
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            onClick={() => openEditModal(item)}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
           >
             <Edit2 className="h-4 w-4" />
           </button>
           <button
-            onClick={() => handleDelete(sub.id, sub.name, (msg) => triggerToast(msg, 'success'))}
-            className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+            onClick={() => handleDelete(item.id!, item.name, (msg) => triggerToast(msg, 'success'))}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -95,21 +81,31 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Môn Học</h2>
-          <p className="text-xs text-slate-500">Xem và sửa đổi chương trình môn học đào tạo của trường</p>
+          <p className="text-xs text-slate-500">Xem và hiệu chỉnh danh mục các môn học</p>
         </div>
         <button
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+          disabled={isLoading}
+          className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-70"
         >
-          <Plus className="h-4 w-4" /> Thêm Môn Học Mới
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Thêm Môn Học
         </button>
       </div>
 
-      {/* Control bar */}
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-sm flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-rose-700">Lỗi tải dữ liệu</p>
+            <p className="mt-1 text-rose-600">{error}</p>
+          </div>
+        </div>
+      )}
+
       <Card className="p-4 flex flex-col sm:flex-row gap-4 items-center">
         <div className="relative w-full sm:max-w-xs">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -119,47 +115,50 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            disabled={isLoading}
             placeholder="Tìm theo mã hoặc tên môn học..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
         </div>
-
-        <div className="w-full sm:w-48">
-          <select
-            value={selectedMajorFilter}
-            onChange={(e) => setSelectedMajorFilter(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-600"
-          >
-            <option value="all">Tất cả ngành</option>
-            {majors.map((maj) => (
-              <option key={maj.id} value={maj.id}>
-                {maj.name} — {departments.find(d => d.id === maj.departmentId)?.name || ''}
-              </option>
-            ))}
-          </select>
-        </div>
       </Card>
 
-      {/* Table Data */}
-      <Card>
-        <Table data={subjects} columns={columns} emptyMessage="Không tìm thấy môn học nào phù hợp." />
+      <Card className="relative min-h-[300px] flex flex-col">
+        {isLoading && subjects.length === 0 ? (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/50 backdrop-blur-sm rounded-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-2" />
+            <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu môn học...</p>
+          </div>
+        ) : (
+          <div className="flex-1">
+            <Table data={subjects} columns={columns} emptyMessage="Không có môn học nào." />
+          </div>
+        )}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          onPageChange={setPage}
+          pageSize={pageSize}
+        />
       </Card>
 
-      {/* Save Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingSubject ? 'Cập Nhật Môn Học' : 'Thêm Môn Học Mới'}
+        title={editingItem ? 'Cập Nhật Môn Học' : 'Thêm Môn Học Mới'}
         footer={
           <>
             <button
               onClick={handleSaveAction}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2"
             >
-              Lưu thông tin
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Lưu dữ liệu
             </button>
             <button
               onClick={() => setIsModalOpen(false)}
+              disabled={isLoading}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
             >
               Hủy bỏ
@@ -168,53 +167,62 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
         }
       >
         <div className="space-y-4">
-          <FormInput
-            label="Mã Môn Học"
-            name="id"
-            value={formData.id}
-            onChange={handleInputChange}
-            disabled={!!editingSubject}
-            placeholder="Ví dụ: INT1001, MAT1102..."
-            error={errors.id}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              label="Mã Môn Học"
+              name="code"
+              value={formData.code}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              placeholder="VD: INT1001"
+              error={errors.code}
+            />
+            <FormInput
+              label="Số Tín Chỉ"
+              name="credits"
+              type="number"
+              value={formData.credits}
+              onChange={handleInputChange}
+              disabled={isLoading}
+              error={errors.credits}
+            />
+          </div>
 
           <FormInput
             label="Tên Môn Học"
             name="name"
             value={formData.name}
             onChange={handleInputChange}
-            placeholder="Ví dụ: Lập trình hướng đối tượng..."
+            disabled={isLoading}
+            placeholder="VD: Cấu trúc dữ liệu và giải thuật"
             error={errors.name}
           />
 
-          <FormInput
-            label="Số Tín Chỉ"
-            name="credits"
-            type="number"
-            value={formData.credits}
-            onChange={handleInputChange}
-            min={1}
-            max={10}
-            error={errors.credits}
-          />
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
+            <SearchableSelect
+              name="departmentId"
+              value={formData.departmentId}
+              onChange={(val) => handleInputChange({ target: { name: 'departmentId', value: Number(val) } } as any)}
+              disabled={isLoading}
+              options={departments.map(dept => ({ value: dept.id!, label: dept.name }))}
+              placeholder="-- Chọn khoa --"
+              error={!!errors.departmentId}
+            />
+            {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
+          </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Ngành áp dụng</label>
-            <select
-              name="majorIds"
-              multiple
-              value={formData.majorIds || []}
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Mô Tả (Tùy chọn)</label>
+            <textarea
+              name="description"
+              value={formData.description}
               onChange={handleInputChange}
-              className={`w-full h-32 px-3.5 py-2 rounded-lg border text-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700 ${
-                (errors as any).majorIds ? 'border-rose-300 focus:border-rose-500' : 'border-slate-200'
-              }`}>
-              {majors.map((maj) => (
-                <option key={maj.id} value={maj.id}>
-                  {maj.name} — {departments.find(d => d.id === maj.departmentId)?.name || ''}
-                </option>
-              ))}
-            </select>
-            {(errors as any).majorIds && <p className="mt-1 text-xs text-rose-600 font-medium">{(errors as any).majorIds}</p>}
+              disabled={isLoading}
+              rows={3}
+              placeholder="Nhập mô tả về môn học..."
+              className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
+            />
           </div>
         </div>
       </Modal>

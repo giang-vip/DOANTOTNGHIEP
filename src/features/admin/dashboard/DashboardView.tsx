@@ -1,207 +1,199 @@
 import React from 'react';
+import { Card } from '../../../components/UI';
+import { 
+  Users, 
+  GraduationCap, 
+  BookOpen, 
+  Calendar,
+  TrendingUp,
+  AlertTriangle,
+  Loader2,
+  AlertCircle
+} from 'lucide-react';
 import { useDashboardViewModel } from './useDashboardViewModel';
-import { Card, Badge, DateRangePicker } from '../../../components/UI';
-import { Users, BookOpen, GraduationCap, Percent, Calendar, MessageSquare } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line
+} from 'recharts';
 
 export function DashboardView() {
-  const {
-    stats,
-    registrationPeriod,
-    updateRegistration,
-    toggleRegistration,
-    teacherChartData,
-    attendanceChartData,
-    recentNotifications
-  } = useDashboardViewModel();
+  const { stats, isLoading, error } = useDashboardViewModel();
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ec4899'];
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-2" />
+        <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu thống kê...</p>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-sm flex items-start gap-3">
+        <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-bold text-rose-700">Lỗi tải dữ liệu</p>
+          <p className="mt-1 text-rose-600">{error || 'Không có dữ liệu'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const kpis = [
+    {
+      title: 'Tổng Sinh Viên',
+      value: stats.totalStudents,
+      icon: Users,
+      color: 'blue'
+    },
+    {
+      title: 'Tổng Giảng Viên',
+      value: stats.totalTeachers,
+      icon: GraduationCap,
+      color: 'emerald'
+    },
+    {
+      title: 'Lớp Học Đang Mở',
+      value: stats.totalClasses,
+      icon: BookOpen,
+      color: 'indigo'
+    },
+    {
+      title: 'Tỷ Lệ Điểm Danh',
+      value: `${stats.attendanceRate}%`,
+      icon: Calendar,
+      color: 'amber'
+    },
+    {
+      title: 'Sinh Viên Cảnh Báo (GPA < 1.0)',
+      value: stats.lowGpaStudentsCount,
+      icon: AlertTriangle,
+      color: 'rose'
+    }
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Page Title */}
       <div>
         <h2 className="text-xl font-bold text-slate-900 tracking-tight">Bảng Thống Kê Tổng Quan</h2>
-        <p className="text-xs text-slate-500">Giám sát các chỉ số hoạt động chính của hệ thống giáo dục Hưng Nhân</p>
+        <p className="text-xs text-slate-500">Dữ liệu thời gian thực của hệ thống</p>
       </div>
 
-      {/* Grid Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 flex items-center gap-4 border-l-4 border-l-blue-600">
-          <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-            <GraduationCap className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tổng Sinh Viên</span>
-            <p className="text-2xl font-bold text-slate-800 leading-none mt-1">{stats.totalStudents}</p>
-          </div>
-        </Card>
-
-        <Card className="p-5 flex items-center gap-4 border-l-4 border-l-emerald-600">
-          <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tổng Giảng Viên</span>
-            <p className="text-2xl font-bold text-slate-800 leading-none mt-1">{stats.totalTeachers}</p>
-          </div>
-        </Card>
-
-        <Card className="p-5 flex items-center gap-4 border-l-4 border-l-indigo-600">
-          <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-            <BookOpen className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Lớp Học Phần</span>
-            <p className="text-2xl font-bold text-slate-800 leading-none mt-1">{stats.totalClasses}</p>
-          </div>
-        </Card>
-
-        <Card className="p-5 flex items-center gap-4 border-l-4 border-l-amber-500">
-          <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
-            <Percent className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Điểm Danh TB</span>
-            <p className="text-2xl font-bold text-slate-800 leading-none mt-1">{stats.attendanceRate}%</p>
-          </div>
-        </Card>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {kpis.map((kpi, idx) => {
+          const Icon = kpi.icon;
+          return (
+            <Card key={idx} className="p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
+              <div className={`h-12 w-12 rounded-xl flex items-center justify-center bg-${kpi.color}-50 shrink-0`}>
+                <Icon className={`h-6 w-6 text-${kpi.color}-600`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate mb-1">
+                  {kpi.title}
+                </p>
+                <p className="text-2xl font-bold text-slate-900 leading-none">
+                  {kpi.value}
+                </p>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Charts */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Tỷ lệ chuyên cần theo lớp học phần (%)</h3>
-            <div className="h-64 w-full">
-              {attendanceChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={attendanceChartData}>
-                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={[0, 100]} />
-                    <Tooltip cursor={{ fill: '#f8fafc' }} />
-                    <Bar dataKey="rate" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={32} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-400 text-sm">Chưa có dữ liệu điểm danh</div>
-              )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Chart 1 */}
+        <Card className="p-5 flex flex-col">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Tỷ lệ đi học theo tháng</h3>
+              <p className="text-xs text-slate-500">Thống kê điểm danh toàn trường</p>
             </div>
-          </Card>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Card className="p-5">
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">Phân bổ giảng viên theo Khoa</h3>
-              <div className="h-48 w-full flex items-center justify-center">
-                {teacherChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={teacherChartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={70}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {teacherChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="text-slate-400 text-sm">Chưa có dữ liệu</div>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-2">
-                {teacherChartData.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span className="text-[11px] text-slate-600 font-medium">{item.name} ({item.value})</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-800">Thông báo mới gửi</h3>
-                <span className="text-slate-400"><MessageSquare className="h-4 w-4" /></span>
-              </div>
-              <div className="space-y-3">
-                {recentNotifications.length > 0 ? (
-                  recentNotifications.map((notif, idx) => (
-                    <div key={idx} className="border-b border-slate-50 last:border-none pb-2 last:pb-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          {new Date(notif.createdAt).toLocaleDateString('vi-VN')}
-                        </span>
-                        <Badge variant={notif.recipientGroup === 'all' ? 'info' : 'gray'}>
-                          {notif.recipientGroup === 'all' ? 'Toàn trường' : notif.recipientGroup === 'teachers' ? 'Giảng viên' : 'Sinh viên'}
-                        </Badge>
-                      </div>
-                      <h4 className="text-xs font-semibold text-slate-700 truncate">{notif.title}</h4>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{notif.content}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-slate-400 text-center py-8 text-xs font-medium">Chưa có thông báo nào</div>
-                )}
-              </div>
-            </Card>
+            <TrendingUp className="h-4 w-4 text-slate-400" />
           </div>
-        </div>
-
-        {/* Right: System Actions (Registration Window) */}
-        <div className="space-y-6">
-          <Card className="p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="h-5 w-5 text-blue-600" />
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Đăng Ký Học Phần</h3>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-500">Trạng thái cổng đăng ký</span>
-                <Badge variant={registrationPeriod.isOpen ? 'success' : 'danger'}>
-                  {registrationPeriod.isOpen ? 'Đang mở' : 'Đang đóng'}
-                </Badge>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Khi mở, sinh viên được phép đăng ký/hủy học phần trực tuyến trong khoảng thời gian đã định.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">
-                  Thời hạn cổng mở (Từ ngày - Đến ngày)
-                </label>
-                <DateRangePicker
-                  startDate={registrationPeriod.startDate}
-                  endDate={registrationPeriod.endDate}
-                  onRangeChange={(start, end) => updateRegistration(start, end, registrationPeriod.isOpen)}
+          <div className="h-64 w-full mt-auto">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.attendanceChartData || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="month" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: '#64748b' }} 
+                  dy={10} 
                 />
-              </div>
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: '#64748b' }} 
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="rate" 
+                  name="Tỷ lệ (%)"
+                  stroke="#3b82f6" 
+                  strokeWidth={3} 
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} 
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#3b82f6' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
 
-              <div className="pt-2">
-                <button
-                  onClick={toggleRegistration}
-                  className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors text-white ${
-                    registrationPeriod.isOpen
-                      ? 'bg-rose-600 hover:bg-rose-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {registrationPeriod.isOpen ? 'Đóng đăng ký ngay' : 'Kích hoạt mở cổng'}
-                </button>
-              </div>
+        {/* Chart 2 */}
+        <Card className="p-5 flex flex-col">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Phân bố Giảng viên</h3>
+              <p className="text-xs text-slate-500">Số lượng giảng viên theo khoa</p>
             </div>
-          </Card>
-        </div>
+            <Users className="h-4 w-4 text-slate-400" />
+          </div>
+          <div className="h-64 w-full mt-auto">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.teacherChartData || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="department" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: '#64748b' }} 
+                  dy={10} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: '#64748b' }} 
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  cursor={{ fill: '#f8fafc' }}
+                />
+                <Bar 
+                  dataKey="count" 
+                  name="Số lượng"
+                  fill="#10b981" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={32}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
       </div>
     </div>
   );

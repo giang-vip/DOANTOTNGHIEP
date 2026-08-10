@@ -20,7 +20,8 @@ import {
   ShieldAlert,
   ChevronRight,
   TrendingUp,
-  Layers
+  Layers,
+  Power
 } from 'lucide-react';
 import { AIChatInterface } from './AIChatInterface';
 import { User as UserType } from '../types';
@@ -55,14 +56,18 @@ export const Layout: React.FC<LayoutProps> = ({
     switch (user.role) {
       case 'admin':
         return [
-          { id: 'dashboard', label: 'Bảng thống kê', icon: ShieldAlert },
+          { id: 'dashboard', label: 'Báo cáo', icon: ShieldAlert },
+          { id: 'academic-years', label: 'Quản lý Năm học', icon: Calendar },
+          { id: 'semesters', label: 'Quản lý Học kỳ', icon: Clock },
           { id: 'departments', label: 'Quản lý Khoa', icon: Settings },
           { id: 'majors', label: 'Quản lý Ngành', icon: Layers },
           { id: 'subjects', label: 'Quản lý Môn học', icon: BookOpen },
-          { id: 'classes', label: 'Quản lý Lớp học', icon: Calendar },
+          { id: 'classes', label: 'Quản lý Lớp học phần', icon: Calendar },
+          { id: 'registration', label: 'Cấu hình Đăng ký', icon: Power },
           { id: 'teachers', label: 'Quản lý Giảng viên', icon: GraduationCap },
           { id: 'students', label: 'Quản lý Sinh viên', icon: Users },
-          { id: 'announcements', label: 'Thông báo & Email', icon: Megaphone }
+          { id: 'announcements', label: 'Thông báo & Email', icon: Megaphone },
+          { id: 'users', label: 'Tài khoản Hệ thống', icon: User }
         ];
       case 'teacher':
         return [
