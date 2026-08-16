@@ -24,7 +24,7 @@ import {
   Power
 } from 'lucide-react';
 import { AIChatInterface } from './AIChatInterface';
-import { User as UserType } from '../types';
+import { User as UserType } from '../models';
 
 interface NavItem {
   id: string;
@@ -84,7 +84,6 @@ export const Layout: React.FC<LayoutProps> = ({
           { id: 'schedule', label: 'Thời khóa biểu tuần', icon: Calendar },
           { id: 'registration', label: 'Đăng ký học phần', icon: Clock },
           { id: 'study', label: 'Góc học tập & Tài liệu', icon: BookOpen },
-          { id: 'homework', label: 'Nộp bài tập trực tuyến', icon: Award },
           { id: 'academic-progress', label: 'Theo dõi học tập', icon: TrendingUp },
           { id: 'profile', label: 'Hồ sơ sinh viên', icon: User }
         ];

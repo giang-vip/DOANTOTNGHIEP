@@ -1,14 +1,32 @@
-import { useState } from 'react';
-import { useStore } from '../../../models/store';
-import { SystemNotification } from '../../../types';
+import { useState, useEffect } from 'react';
+import { adminApi } from '../../../api/services/adminApi';
+import { AdminAnnouncementResponse } from '../../../models/Announcement';
 
 export function useAnnouncementsViewModel() {
-  const { notifications, addNotification, deleteNotification } = useStore();
+  const [notifications, setNotifications] = useState<AdminAnnouncementResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [recipientGroup, setRecipientGroup] = useState<'all' | 'teachers' | 'students'>('all');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const fetchAnnouncements = async () => {
+    try {
+      setIsLoading(true);
+      const res = await adminApi.getAllAnnouncements();
+      setNotifications(res || []);
+    } catch (err) {
+      console.error('Failed to fetch announcements:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
 
   const validate = (): boolean => {
     const tempErrors: Record<string, string> = {};
@@ -18,34 +36,74 @@ export function useAnnouncementsViewModel() {
     return Object.keys(tempErrors).length === 0;
   };
 
-  const handleSendNotification = (onSuccess: (msg: string) => void) => {
+  const handleSendNotification = async (onSuccess: (msg: string) => void) => {
     if (!validate()) return;
 
-    addNotification({
-      title: title.trim(),
-      content: content.trim(),
-      recipientGroup,
-      sender: 'Phòng Đào Tạo Hưng Nhân'
-    });
+    try {
+      setIsLoading(true);
+      const data = {
+        title: title.trim(),
+        content: content.trim(),
+        recipientGroup
+      };
 
-    // Reset Form
+      if (editingId) {
+        await adminApi.updateAnnouncement(editingId, data);
+        onSuccess('Cập nhật thông báo thành công!');
+      } else {
+        await adminApi.createAnnouncement(data);
+        onSuccess('Thông báo đã được đăng tải và gửi Email thành công tới nhóm đích!');
+      }
+
+      // Reset Form
+      setTitle('');
+      setContent('');
+      setRecipientGroup('all');
+      setErrors({});
+      setEditingId(null);
+      
+      // Tải lại danh sách
+      fetchAnnouncements();
+    } catch (err) {
+      console.error('Failed to save announcement:', err);
+      alert('Có lỗi xảy ra khi lưu thông báo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditClick = (notif: AdminAnnouncementResponse) => {
+    setEditingId(notif.id);
+    setTitle(notif.title);
+    setContent(notif.content);
+    setRecipientGroup(notif.recipientGroup as any || 'all');
+    setErrors({});
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
     setTitle('');
     setContent('');
     setRecipientGroup('all');
     setErrors({});
-
-    onSuccess('Thông báo đã được đăng tải và gửi Email thành công tới nhóm đích!');
   };
 
-  const handleDelete = (id: string, onSuccess: (msg: string) => void) => {
+  const handleDelete = async (id: number, onSuccess: (msg: string) => void) => {
     if (confirm('Bạn có chắc muốn xóa lịch sử thông báo này?')) {
-      deleteNotification(id);
-      onSuccess('Đã xóa thông báo thành công!');
+      try {
+        await adminApi.deleteAnnouncement(id);
+        onSuccess('Đã xóa thông báo thành công!');
+        fetchAnnouncements();
+      } catch (err) {
+        console.error('Failed to delete announcement:', err);
+        alert('Lỗi khi xóa thông báo');
+      }
     }
   };
 
   return {
     notifications,
+    isLoading,
     title,
     setTitle,
     content,
@@ -53,6 +111,9 @@ export function useAnnouncementsViewModel() {
     recipientGroup,
     setRecipientGroup,
     errors,
+    editingId,
+    handleEditClick,
+    handleCancelEdit,
     sendNotification: handleSendNotification,
     deleteNotification: handleDelete
   };

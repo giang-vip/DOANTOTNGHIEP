@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { QuizQuestion, QuizAnswer, Assignment } from '../types';
+import ReactDOM from 'react-dom';
+import { QuizQuestion, QuizAnswer, Assignment } from '../models';
 import { CheckCircle2, XCircle, AlertCircle, FileText, X, ZoomIn, ZoomOut, RotateCcw, HelpCircle } from 'lucide-react';
 
 /**
@@ -42,15 +43,15 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
   const [zoomLevel, setZoomLevel] = useState<number>(100);
 
   // Lấy thông tin câu hỏi đang xem chi tiết
-  const currentQuestion = questions[selectedQuestionIndex] || questions[0];
-  const maxPoints = assignment.maxPoints || 10;
+  const currentQuestion = questions?.[selectedQuestionIndex] || questions?.[0];
+  const maxPoints = assignment?.maxPoints || 10;
 
   // Bản đồ tra cứu nhanh câu trả lời của SV theo questionId
   const answerMap = new Map<string, QuizAnswer>();
-  answers.forEach((ans) => answerMap.set(ans.questionId, ans));
+  answers?.forEach((ans) => answerMap.set(ans.questionId, ans));
 
   // Tính toán số câu trả lời đúng của sinh viên
-  const correctCount = questions.reduce((acc, q) => {
+  const correctCount = (questions || []).reduce((acc, q) => {
     const userAns = answerMap.get(q.id);
     return userAns && userAns.selectedChoice === q.correctChoice ? acc + 1 : acc;
   }, 0);
@@ -61,12 +62,12 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
   const handleResetZoom = () => setZoomLevel(100);
 
   // Lấy file URL hoặc file mặc định demo nếu chưa có URL
-  const examUrl = assignment.examFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
-  const examName = assignment.examFileName || 'DE_THI_CHINH_THUC.PDF';
-  const isPdf = assignment.examFileType === 'pdf' || examName.toLowerCase().endsWith('.pdf');
+  const examUrl = assignment?.examFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+  const examName = assignment?.examFileName || 'DE_THI_CHINH_THUC.PDF';
+  const isPdf = assignment?.examFileType === 'pdf' || examName.toLowerCase().endsWith('.pdf');
 
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex flex-col w-full h-full overflow-hidden text-slate-800 font-sans">
+  const content = (
+    <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex flex-col w-full h-full overflow-hidden text-slate-800 font-sans">
       {/* 1. THANH TIÊU ĐỀ TRÊN CÙNG (HEADER) */}
       <div className="bg-slate-950 text-white px-6 py-3.5 flex items-center justify-between border-b border-slate-800 shadow-md">
         <div className="flex items-center gap-3">
@@ -78,7 +79,7 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
               Xem Lại Kết Quả Trắc Nghiệm
             </h2>
             <p className="text-xs text-slate-400">
-              Bài tập: <span className="text-slate-200 font-medium">{assignment.title || assignment.id}</span> • Thang điểm: {maxPoints}đ
+              Bài tập: <span className="text-slate-200 font-medium">{assignment?.title || assignment?.id}</span> • Thang điểm: {maxPoints}đ
             </p>
           </div>
         </div>
@@ -157,7 +158,7 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
               </div>
 
               <div className="grid grid-cols-5 gap-2">
-                {questions.map((q, idx) => {
+                {(questions || []).map((q, idx) => {
                   const userAns = answerMap.get(q.id);
                   const isSelected = selectedQuestionIndex === idx;
                   let statusBg = 'bg-slate-100 text-slate-600 border-slate-300';
@@ -325,13 +326,13 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
                 <iframe
                   src={`${examUrl}#toolbar=0`}
                   title="File đề thi PDF"
-                  className="w-full h-[750px] rounded-lg shadow-2xl bg-white border border-slate-700"
+                  className="w-full h-full min-h-[85vh] rounded-lg shadow-2xl bg-white border border-slate-700"
                 />
               ) : (
                 <img
                   src={examUrl}
                   alt="Ảnh đề thi chính thức"
-                  className="max-w-full max-h-[750px] object-contain rounded-lg shadow-2xl border border-slate-700 bg-white"
+                  className="max-w-full h-full min-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700 bg-white"
                 />
               )}
             </div>
@@ -369,4 +370,6 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? ReactDOM.createPortal(content, document.body) : content;
 };

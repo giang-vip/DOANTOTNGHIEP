@@ -1,38 +1,60 @@
-import { useState } from 'react';
-import { useStore } from '../../../models/store';
-import { Student } from '../../../types';
-import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
+import { useState, useEffect } from 'react';
+import { studentApi } from '../../../api/services/studentApi';
+import { Student } from '../../../models';
 import { useStudentAcademicStats } from '../../../hooks/useStudentAcademicStats';
 
 export function useDashboardViewModel(studentProfile: Student) {
-  const { classes, assignments, submissions, notifications } = useStore();
+  const [classesList, setClassesList] = useState<any[]>([]);
+  const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
+  const [gradesList, setGradesList] = useState<any[]>([]);
+  const [pendingAsmsCount, setPendingAsmsCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const classesRes = await studentApi.getStudentClasses(0, 100);
+        const classesData = (classesRes as any)?.content || [];
+        setClassesList(classesData);
+
+        const annRes = await studentApi.getStudentAnnouncements(0, 100);
+        setAnnouncementsList((annRes as any)?.content || []);
+
+        const gradesRes = await studentApi.getMyGrades(undefined, 0, 100);
+        const gradesData = (gradesRes as any)?.content || [];
+        setGradesList(gradesData);
+
+        let totalPending = 0;
+        for (const cls of classesData) {
+          const asmRes = await studentApi.getAssignments(cls.id, 0, 100);
+          const asms = (asmRes as any)?.content || [];
+          const pending = asms.filter((a: any) => !a.submissionStatus);
+          totalPending += pending.length;
+        }
+        setPendingAsmsCount(totalPending);
+
+      } catch (err) {
+        console.error('Lỗi khi tải dữ liệu dashboard:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const completedGrades = gradesList.filter(g => g.finalScore !== null);
+  const totalCredits = completedGrades.reduce((sum, g) => sum + (g.credits || 0), 0);
+  
   const { cumulativeGpa } = useStudentAcademicStats(studentProfile.id, studentProfile.majorId);
-
-  // Enrolled classes that are consistent with the student's assigned major
-  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
-
-  // Accumulated credits
-  const totalCredits = enrolledClasses.reduce((sum, c) => sum + c.credits, 0);
-
-  // Filter homework assignments for enrolled classes
-  const enrolledClassIds = enrolledClasses.map(c => c.id);
-  const classAssignments = assignments.filter(a => enrolledClassIds.includes(a.classId));
-
-  // Determine which are pending (not yet submitted)
-  const studentSubmissions = submissions.filter(s => s.studentId === studentProfile.id);
-  const submittedAsmIds = studentSubmissions.map(s => s.assignmentId);
-  const pendingAssignments = classAssignments.filter(a => !submittedAsmIds.includes(a.id));
-
-  // Filter school/class announcements targeting 'all' or this student's specific class IDs
-  const feedAnnouncements = notifications.filter(
-    n => n.recipientGroup === 'all' || (n.recipientGroup === 'class' && enrolledClassIds.includes(n.classId || ''))
-  );
 
   return {
     gpa: cumulativeGpa,
     accumulatedCredits: totalCredits,
-    enrolledClassesCount: enrolledClasses.length,
-    pendingAsmsCount: pendingAssignments.length,
-    announcements: feedAnnouncements
+    enrolledClassesCount: classesList.length,
+    pendingAsmsCount,
+    announcements: announcementsList,
+    loading
   };
 }

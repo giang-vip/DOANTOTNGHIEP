@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { useHomeworkViewModel } from './useHomeworkViewModel';
 import { Card, Table, Badge, FormInput, FileUploader, Modal } from '../../../components/UI';
 import { ExamReviewView } from '../../../components/ExamReviewView';
-import { QuizTakingView } from '../study/QuizTakingView';
+import { QuizTakingView } from '../study/assignments/QuizTakingView';
 import { QuizReviewPanel } from '../../../components/QuizReviewPanel';
-import { useStore } from '../../../models/store';
-import { useStudentViewModel } from '../../../viewmodels/useStudentViewModel';
-import { Student, Assignment } from '../../../types';
+import { Student, Assignment } from '../../../models';
+import { studentApi } from '../../../api/services/studentApi';
 import { FileEdit, BookOpen, AlertCircle, CheckCircle2, Award, Clock, ArrowLeft, Upload, FileCheck, FileQuestion, ChevronDown } from 'lucide-react';
 
 interface HomeworkViewProps {
@@ -28,15 +27,17 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
     getSubmissionForAssignment,
     startHomework,
     handleFileSelect,
-    submitHomework
+    submitHomework,
+    quizQuestions,
+    quizResult,
+    loadQuizResult
   } = useHomeworkViewModel(studentProfile);
 
   // Read-only submission view state
   const [viewSubmission, setViewSubmission] = useState<any | null>(null);
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
 
-  const { quizQuestions, quizAnswers: allQuizAnswers } = useStore();
-  const { submitQuizAnswers: submitQuizAnswersToStore } = useStudentViewModel(studentProfile.id);
+
 
   const filteredHomeworks = selectedClassId === 'all'
     ? homeworks
@@ -78,7 +79,7 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
     {
       header: 'Trạng Thái',
       accessor: (asm: Assignment) => {
-        const sub = getSubmissionForAssignment(asm.id);
+        const sub = getSubmissionForAssignment(String(asm.id));
         if (!sub) return <Badge variant="danger">Chưa nộp bài</Badge>;
         if (sub.status === 'graded') {
           return (
@@ -94,7 +95,7 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
     {
       header: 'Thao Tác',
       accessor: (asm: Assignment) => {
-        const sub = getSubmissionForAssignment(asm.id);
+        const sub = getSubmissionForAssignment(String(asm.id));
         if (!sub) {
           return (
             <button
@@ -107,9 +108,28 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
         }
 
         const isQuiz = asm.type === 'quiz';
+
         return (
           <button
-            onClick={() => setViewSubmission({ asm, sub })}
+            onClick={async () => {
+              try {
+                if (isQuiz) {
+                  await loadQuizResult(String(asm.id));
+                  setViewSubmission({ asm, sub });
+                } else {
+                  // Fetch the real submission from backend to get content and fileUrl
+                  const realSub = await studentApi.getMySubmission(Number(asm.id));
+                  if (realSub) {
+                    setViewSubmission({ asm, sub: realSub });
+                  } else {
+                    setViewSubmission({ asm, sub });
+                  }
+                }
+              } catch (e) {
+                console.error("Failed to load submission detail", e);
+                setViewSubmission({ asm, sub });
+              }
+            }}
             className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
           >
             {isQuiz ? 'Xem lại bài thi' : 'Xem kết quả'}
@@ -128,9 +148,13 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
           assignment={activeHomework}
           questions={quizQuestions.filter(q => q.assignmentId === activeHomework.id)}
           onSubmit={(userAnswers) => {
-            submitQuizAnswersToStore(activeHomework.id, activeHomework.classId, userAnswers);
-            triggerToast('Nộp bài trắc nghiệm thành công!', 'success');
-            setActiveHomework(null);
+            // Mapping answers back to answers state then submit
+            const newAnswers: Record<string, string> = {};
+            userAnswers.forEach(a => {
+              if (a.selectedChoice) newAnswers[a.questionId] = a.selectedChoice;
+            });
+            setAnswers(newAnswers);
+            submitHomework((msg) => triggerToast(msg, 'success'));
           }}
           onCancel={() => setActiveHomework(null)}
         />
@@ -167,56 +191,49 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
               {activeHomework.description}
             </div>
 
-            {/* Render conditional homework questions input */}
-            {activeHomework.type === 'quiz' ? (
-              <div className="space-y-5">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                  <FileQuestion className="h-4.5 w-4.5 text-blue-600" /> Câu hỏi trắc nghiệm kiểm tra
-                </h4>
-
-                {/* Simulated quiz question items */}
-                {[1, 2, 3, 4].map((qNum) => (
-                  <div key={qNum} className="p-4 bg-white border border-slate-150 rounded-xl space-y-3 shadow-2xs">
-                    <p className="text-xs font-bold text-slate-800">Câu hỏi {qNum}: Đâu là câu trả lời chính xác nhất?</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {['a', 'b', 'c', 'd'].map((ans) => {
-                        const isChecked = answers[qNum] === ans;
-                        return (
-                          <button
-                            key={ans}
-                            onClick={() => setAnswers(prev => ({ ...prev, [qNum]: ans }))}
-                            className={`flex items-center gap-3 p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer ${
-                              isChecked
-                                ? 'bg-blue-600 border-blue-600 text-white font-bold'
-                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            <span className={`h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-black uppercase shrink-0 ${
-                              isChecked ? 'bg-white text-blue-600 border-white' : 'bg-white text-slate-500 border-slate-300'
-                            }`}>
-                              {ans}
-                            </span>
-                            <span>Đáp án {ans.toUpperCase()}</span>
-                          </button>
-                        );
-                      })}
+            {/* Essay work form */}
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Cột trái: Trình xem Đề bài */}
+              <div className="flex-1 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex flex-col min-h-[400px]">
+                <div className="bg-slate-200 px-4 py-2 border-b border-slate-300 text-[10px] font-bold text-slate-600 uppercase tracking-wide">
+                  Tài Liệu Đề Bài
+                </div>
+                <div className="flex-1 p-2 flex items-center justify-center bg-white relative">
+                  {(activeHomework.examFileUrl && activeHomework.examFileUrl !== '#') ? (
+                    activeHomework.examFileUrl.toLowerCase().endsWith('.pdf') ? (
+                      <iframe
+                        src={`${activeHomework.examFileUrl}#toolbar=0`}
+                        title="File đề thi"
+                        className="w-full h-full min-h-[500px] border-none"
+                      />
+                    ) : (
+                      <img
+                        src={activeHomework.examFileUrl}
+                        alt="Đề thi chính thức"
+                        className="max-w-full max-h-[500px] object-contain rounded-lg"
+                      />
+                    )
+                  ) : (
+                    <div className="text-center p-8 space-y-3">
+                      <FileQuestion className="w-12 h-12 text-slate-300 mx-auto" />
+                      <p className="text-xs text-slate-500 font-medium">Không có file đính kèm</p>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
-            ) : (
-              /* Essay work form */
-              <div className="space-y-5">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Giải pháp bài làm tự luận</h4>
+
+              {/* Cột phải: Khu vực Nộp Bài */}
+              <div className="w-full lg:w-[40%] space-y-5">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Khu vực nộp bài</h4>
                 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase">Nội dung tự soạn thảo</label>
                   <textarea
                     value={essayContent}
                     onChange={(e) => setEssayContent(e.target.value)}
-                    rows={6}
+                    rows={8}
                     placeholder="Nhập phần giải đề bài, nội dung phân tích tự luận của bạn..."
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs focus:outline bg-white text-slate-750 font-sans leading-relaxed"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs focus:outline bg-white text-slate-750 font-sans leading-relaxed shadow-inner"
                   />
                 </div>
 
@@ -225,7 +242,7 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
                   <FileUploader onFileSelect={handleFileSelect} />
                 </div>
               </div>
-            )}
+            </div>
 
             {errors && (
               <div className="p-3 bg-rose-50 text-rose-700 text-xs font-semibold rounded-lg border border-rose-100 flex items-center gap-2">
@@ -316,13 +333,19 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
       )}
 
       {/* View Result Popup */}
-      {viewSubmission && viewSubmission.asm.type === 'quiz' ? (
+      {viewSubmission && viewSubmission.asm.type === 'quiz' && quizResult ? (
         <QuizReviewPanel
           mode="result"
           assignment={viewSubmission.asm}
-          questions={quizQuestions.filter(q => q.assignmentId === viewSubmission.asm.id)}
-          answers={allQuizAnswers.filter(a => a.submissionId === viewSubmission.sub.id)}
-          totalScore={viewSubmission.sub.score || 0}
+          questions={quizQuestions}
+          answers={(quizResult.answers || []).map((ans: any) => ({
+            id: String(ans.questionId),
+            submissionId: String(quizResult.submissionId),
+            questionId: String(ans.questionId),
+            selectedChoice: ans.selectedChoice,
+            isCorrect: ans.isCorrect
+          }))}
+          totalScore={quizResult.totalScore || 0}
           onClose={() => setViewSubmission(null)}
         />
       ) : viewSubmission ? (
@@ -357,6 +380,18 @@ export function HomeworkView({ studentProfile, triggerToast }: HomeworkViewProps
               <div className="p-3 bg-white border rounded-lg max-h-36 overflow-y-auto whitespace-pre-line text-slate-700 leading-relaxed">
                 {viewSubmission.sub.content || 'Bài nộp dạng đính kèm tài liệu.'}
               </div>
+              {viewSubmission.sub.fileUrl && (
+                <div className="pt-2">
+                  <a
+                    href={viewSubmission.sub.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-bold transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> Tải/Xem file bài làm đã nộp
+                  </a>
+                </div>
+              )}
             </div>
 
             {viewSubmission.sub.feedback && (

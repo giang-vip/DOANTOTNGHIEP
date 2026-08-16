@@ -2,7 +2,7 @@ import React from 'react';
 import { useDepartmentListViewModel } from './useDepartmentListViewModel';
 import { Card, Table, Modal, FormInput } from '../../../components/UI';
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { Department } from '../../../models/admin/Department';
+import { Department } from '../../../models/Department';
 
 interface DepartmentListViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
@@ -106,8 +106,7 @@ export function DepartmentListView({ triggerToast }: DepartmentListViewProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={isLoading}
-            placeholder="Tìm theo mã hoặc tên khoa..."
+            placeholder="Tìm theo mã hoặc tên..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
         </div>

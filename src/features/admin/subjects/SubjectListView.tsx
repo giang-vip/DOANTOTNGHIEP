@@ -2,7 +2,7 @@ import React from 'react';
 import { useSubjectListViewModel } from './useSubjectListViewModel';
 import { Card, Table, Modal, FormInput, Pagination } from '../../../components/UI';
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { Subject } from '../../../models/admin/Subject';
+import { Subject } from '../../../models/Subject';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface SubjectListViewProps {
@@ -115,7 +115,6 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={isLoading}
             placeholder="Tìm theo mã hoặc tên môn học..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />

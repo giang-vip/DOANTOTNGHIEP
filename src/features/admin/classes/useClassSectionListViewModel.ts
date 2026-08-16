@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { ClassSection, ClassSectionRequest } from '../../../models/admin/ClassSection';
-import { Subject } from '../../../models/admin/Subject';
-import { Teacher } from '../../../models/admin/Teacher';
-import { Department } from '../../../models/admin/Department';
-import { Major } from '../../../models/admin/Major';
+import { ClassSection, ClassSectionRequest } from '../../../models/ClassSection';
+import { Subject } from '../../../models/Subject';
+import { Teacher } from '../../../models/Teacher';
+import { Department } from '../../../models/Department';
+import { Major } from '../../../models/Major';
+import { Semester } from '../../../models/Semester';
 
 export function useClassSectionListViewModel() {
   const [classSections, setClassSections] = useState<ClassSection[]>([]);

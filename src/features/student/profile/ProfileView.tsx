@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useProfileViewModel } from './useProfileViewModel';
 import { Card, Modal, FormInput, Badge } from '../../../components/UI';
-import { Student } from '../../../types';
+import { Student } from '../../../models';
 import {
   User, Mail, Phone, CalendarDays, Key, Edit, Award, Camera,
   ScanFace, Sparkles, Loader2, Trash2, ShieldAlert, BadgeCheck, FileUp
@@ -53,10 +53,10 @@ export function ProfileView({ studentProfile, triggerToast }: ProfileViewProps) 
     trainingProgress
   } = useProfileViewModel(studentProfile, triggerToast);
 
-  const { cumulativeGpa } = useStudentAcademicStats(profile.id, profile.majorId);
+  const { cumulativeGpa } = useStudentAcademicStats(String(profile.id || ''), profile.majorId);
 
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState(profile.phone);
+  const [email, setEmail] = useState(profile.email || '');
+  const [phone, setPhone] = useState(profile.phone || '');
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
 
@@ -98,28 +98,35 @@ export function ProfileView({ studentProfile, triggerToast }: ProfileViewProps) 
                 className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center text-white hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
                 title="Thay ảnh đại diện"
               >
-                <Camera className="h-4 w-4" />
+                <Camera className="h-3.5 w-3.5" />
               </button>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-850">{profile.name}</h3>
-              <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-1 inline-block">
-                Sinh Viên Chính Quy
-              </span>
+
+            <div className="pt-2">
+              <h3 className="text-lg font-bold text-slate-800 leading-snug">{profile.fullName || profile.name}</h3>
+              <p className="text-xs text-slate-500 font-medium">Mã sinh viên: <span className="font-mono text-slate-700 font-bold">{profile.studentCode || profile.id}</span></p>
             </div>
 
-            <div className="border-t border-slate-100 pt-4 text-left space-y-2.5">
-              <div className="flex items-center gap-2.5 text-xs text-slate-600">
-                <User className="h-4 w-4 text-slate-400 shrink-0" />
-                <span>MSSV: <strong className="text-slate-800">{profile.id}</strong></span>
+            <div className="border-t border-slate-100 pt-4 text-left space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500">Giới tính:</span>
+                <span className="font-bold text-slate-800">{profile.gender || 'Chưa cập nhật'}</span>
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-slate-600">
-                <CalendarDays className="h-4 w-4 text-slate-400 shrink-0" />
-                <span>Lớp Khóa Học: <strong className="text-slate-800">{profile.classCode}</strong></span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500">Ngày sinh:</span>
+                <span className="font-bold text-slate-800">{profile.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</span>
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-slate-600">
-                <Award className="h-4 w-4 text-slate-400 shrink-0" />
-                <span>GPA tích lũy: <strong className="text-slate-850">{cumulativeGpa.toFixed(2)}</strong></span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500">Ngành học:</span>
+                <span className="font-bold text-slate-800">{profile.majorName || 'Chưa phân ngành'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500">Lớp sinh hoạt:</span>
+                <span className="font-bold text-slate-800">{profile.classCode || 'Chưa phân lớp'}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs mt-4">
+                <span className="text-slate-500">GPA Hiện Tại:</span>
+                <span className="font-black text-blue-600 text-sm">{(Math.round(cumulativeGpa * 100) / 100).toFixed(2)}</span>
               </div>
             </div>
           </Card>

@@ -1,8 +1,8 @@
 import React from 'react';
 import { useRegistrationPeriodViewModel } from './useRegistrationPeriodViewModel';
 import { Card, Table, Modal, FormInput, Badge } from '../../../components/UI';
-import { Plus, Edit2, Loader2, AlertCircle, Calendar, Power } from 'lucide-react';
-import { RegistrationPeriod } from '../../../models/admin/RegistrationPeriod';
+import { Plus, Edit2, Loader2, AlertCircle, Calendar, Power, Trash2 } from 'lucide-react';
+import { RegistrationPeriod } from '../../../models/RegistrationPeriod';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface RegistrationPeriodViewProps {
@@ -24,7 +24,8 @@ export function RegistrationPeriodView({ triggerToast }: RegistrationPeriodViewP
     openEditModal,
     handleInputChange,
     handleToggle,
-    handleSave
+    handleSave,
+    handleDelete
   } = useRegistrationPeriodViewModel();
 
   const columns = [
@@ -38,10 +39,10 @@ export function RegistrationPeriodView({ triggerToast }: RegistrationPeriodViewP
       header: 'Thời Gian Đăng Ký',
       accessor: (item: RegistrationPeriod) => (
         <div className="flex items-center gap-2 text-sm text-slate-600">
-          <Calendar className="h-4 w-4 text-slate-400" />
-          <span>
-            {new Date(item.startDate).toLocaleDateString('vi-VN')} - {new Date(item.endDate).toLocaleDateString('vi-VN')}
-          </span>
+          <Calendar className="h-4 w-4 text-blue-500" />
+          <span>{new Date(item.startDate).toLocaleDateString('vi-VN')}</span>
+          <span className="text-slate-400">→</span>
+          <span>{new Date(item.endDate).toLocaleDateString('vi-VN')}</span>
         </div>
       )
     },
@@ -56,10 +57,11 @@ export function RegistrationPeriodView({ triggerToast }: RegistrationPeriodViewP
     {
       header: 'Thao Tác',
       accessor: (item: RegistrationPeriod) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={() => handleToggle(item.id!, item.isOpen, (msg) => triggerToast(msg, 'success'))}
             disabled={isLoading}
+            title={item.isOpen ? 'Đóng cổng' : 'Mở cổng'}
             className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 ${
               item.isOpen 
                 ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' 
@@ -67,14 +69,23 @@ export function RegistrationPeriodView({ triggerToast }: RegistrationPeriodViewP
             }`}
           >
             <Power className="h-3.5 w-3.5" />
-            {item.isOpen ? 'Đóng cổng' : 'Mở cổng'}
+            {item.isOpen ? 'Đóng' : 'Mở'}
           </button>
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
+            title="Sửa cấu hình"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
           >
             <Edit2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(item.id!, (msg) => triggerToast(msg, 'success'))}
+            disabled={isLoading}
+            title="Xóa cấu hình"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       ),
@@ -152,7 +163,7 @@ export function RegistrationPeriodView({ triggerToast }: RegistrationPeriodViewP
               name="semesterId"
               value={formData.semesterId}
               onChange={(val) => handleInputChange({ target: { name: 'semesterId', value: Number(val) } } as any)}
-              disabled={isLoading || !!editingItem}
+              disabled={isLoading}
               options={semesters.map(s => ({ value: s.id!, label: s.name }))}
               placeholder="-- Chọn học kỳ --"
               error={!!errors.semesterId}

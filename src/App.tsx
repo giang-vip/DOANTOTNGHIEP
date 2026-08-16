@@ -5,7 +5,6 @@
 
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { StoreProvider } from './models/store';
 import { useAuthViewModel } from './viewmodels/useAuthViewModel';
 import { LoginView } from './views/LoginView';
 import { Layout } from './components/Layout';
@@ -13,7 +12,7 @@ import { AdminPortal } from './views/AdminPortal';
 import { TeacherPortal } from './views/TeacherPortal';
 import { StudentPortal } from './views/StudentPortal';
 import { Toast, ToastType } from './components/Toast';
-import { Student, Teacher } from './types';
+import { Student, Teacher } from './models';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -172,10 +171,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <BrowserRouter>
-        <AppContent />
-      </BrowserRouter>
-    </StoreProvider>
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }

@@ -20,8 +20,10 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  LineChart,
-  Line
+  PieChart,
+  Pie,
+  Cell,
+  LabelList
 } from 'recharts';
 
 export function DashboardView() {
@@ -78,8 +80,16 @@ export function DashboardView() {
       value: stats.lowGpaStudentsCount,
       icon: AlertTriangle,
       color: 'rose'
+    },
+    {
+      title: 'Tỷ Lệ Tín Chỉ (Hoàn thành)',
+      value: `${stats.averageCreditCompletionRate ? stats.averageCreditCompletionRate.toFixed(1) : 0}%`,
+      icon: TrendingUp,
+      color: 'purple'
     }
   ];
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
   return (
     <div className="space-y-6">
@@ -89,7 +99,7 @@ export function DashboardView() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
@@ -111,50 +121,7 @@ export function DashboardView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1 */}
-        <Card className="p-5 flex flex-col">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800">Tỷ lệ đi học theo tháng</h3>
-              <p className="text-xs text-slate-500">Thống kê điểm danh toàn trường</p>
-            </div>
-            <TrendingUp className="h-4 w-4 text-slate-400" />
-          </div>
-          <div className="h-64 w-full mt-auto">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.attendanceChartData || []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#64748b' }} 
-                  dy={10} 
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#64748b' }} 
-                />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="rate" 
-                  name="Tỷ lệ (%)"
-                  stroke="#3b82f6" 
-                  strokeWidth={3} 
-                  dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} 
-                  activeDot={{ r: 6, strokeWidth: 0, fill: '#3b82f6' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Chart 2 */}
+        {/* Chart 2: Teacher Distribution */}
         <Card className="p-5 flex flex-col">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -163,15 +130,119 @@ export function DashboardView() {
             </div>
             <Users className="h-4 w-4 text-slate-400" />
           </div>
-          <div className="h-64 w-full mt-auto">
+          <div className="h-64 w-full mt-auto flex items-center">
+            <div className="w-[45%] h-full relative -left-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.teacherChartData || []}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {(stats.teacherChartData || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value, name, props) => [`${value} giảng viên`, `Tên Khoa: ${props.payload.name}`]}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="w-[55%] h-full overflow-y-auto pl-2 py-2 flex flex-col justify-center">
+              <ul className="space-y-3 text-xs">
+                {(stats.teacherChartData || []).map((entry, index) => {
+                  const percentage = stats.totalTeachers > 0 ? ((entry.value / stats.totalTeachers) * 100).toFixed(1) : 0;
+                  return (
+                    <li key={`item-${index}`} className="flex items-center text-slate-600">
+                      <span className="w-2.5 h-2.5 rounded-full mr-2.5 shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="truncate flex-1 font-medium" title={entry.name}>{entry.shortName || entry.name}</span>
+                      <span className="font-bold text-slate-800 ml-2 whitespace-nowrap">
+                        {entry.value} <span className="font-normal text-slate-400">({percentage}%)</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </Card>
+
+        {/* Chart 3: Student Distribution */}
+        <Card className="p-5 flex flex-col">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Phân bố Sinh viên</h3>
+              <p className="text-xs text-slate-500">Số lượng sinh viên theo khoa</p>
+            </div>
+            <GraduationCap className="h-4 w-4 text-slate-400" />
+          </div>
+          <div className="h-64 w-full mt-auto flex items-center">
+            <div className="w-[45%] h-full relative -left-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.studentChartData || []}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {(stats.studentChartData || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value, name, props) => [`${value} sinh viên`, `Tên Khoa: ${props.payload.name}`]}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="w-[55%] h-full overflow-y-auto pl-2 py-2 flex flex-col justify-center">
+              <ul className="space-y-3 text-xs">
+                {(stats.studentChartData || []).map((entry, index) => {
+                  const percentage = stats.totalStudents > 0 ? ((entry.value / stats.totalStudents) * 100).toFixed(1) : 0;
+                  return (
+                    <li key={`item-${index}`} className="flex items-center text-slate-600">
+                      <span className="w-2.5 h-2.5 rounded-full mr-2.5 shrink-0" style={{ backgroundColor: COLORS[(index + 2) % COLORS.length] }} />
+                      <span className="truncate flex-1 font-medium" title={entry.name}>{entry.shortName || entry.name}</span>
+                      <span className="font-bold text-slate-800 ml-2 whitespace-nowrap">
+                        {entry.value} <span className="font-normal text-slate-400">({percentage}%)</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        </Card>
+
+        {/* Chart 1: Grade Distribution (Full Width) */}
+        <Card className="p-5 flex flex-col lg:col-span-2">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Phổ điểm / Kết quả học tập</h3>
+              <p className="text-xs text-slate-500">Phân loại GPA sinh viên toàn trường</p>
+            </div>
+            <TrendingUp className="h-4 w-4 text-slate-400" />
+          </div>
+          <div className="h-72 w-full mt-auto">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.teacherChartData || []}>
+              <BarChart data={stats.gradeDistributionData || []} layout="horizontal" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis 
-                  dataKey="department" 
+                  dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fontSize: 12, fill: '#64748b' }} 
+                  tick={{ fontSize: 11, fill: '#64748b' }} 
                   dy={10} 
                 />
                 <YAxis 
@@ -180,16 +251,21 @@ export function DashboardView() {
                   tick={{ fontSize: 12, fill: '#64748b' }} 
                 />
                 <Tooltip 
+                  formatter={(value, name, props) => [`${value} Sinh viên`, `Mức điểm: ${props.payload.name}`]}
                   contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   cursor={{ fill: '#f8fafc' }}
                 />
                 <Bar 
-                  dataKey="count" 
-                  name="Số lượng"
-                  fill="#10b981" 
+                  dataKey="value" 
+                  name="Số lượng SV"
                   radius={[4, 4, 0, 0]}
-                  barSize={32}
-                />
+                  barSize={50}
+                >
+                  {(stats.gradeDistributionData || []).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                  ))}
+                  <LabelList dataKey="value" position="top" fill="#64748b" fontSize={13} fontWeight={600} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

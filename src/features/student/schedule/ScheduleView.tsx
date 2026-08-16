@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../../../components/UI';
-import { Student } from '../../../types';
-import { useStore } from '../../../models/store';
-import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
+import { Student } from '../../../models';
+import { useScheduleViewModel } from './useScheduleViewModel';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WeeklyTimetable } from '../../../components/WeeklyTimetable';
 
@@ -26,10 +25,7 @@ function getWeekRange(d: Date) {
 }
 
 export function ScheduleView({ studentProfile }: ScheduleViewProps) {
-  const { classes } = useStore();
-
-  // Enrolled classes for this student, filtered consistently by the student major
-  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
+  const { enrolledClasses } = useScheduleViewModel(studentProfile);
 
   // Current date state for week shifting
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -55,14 +51,23 @@ export function ScheduleView({ studentProfile }: ScheduleViewProps) {
   return (
     <div className="space-y-6">
       {/* Header block */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Thời Khóa Biểu Học Tập</h2>
           <p className="text-xs text-slate-500">Xem phân bổ lịch trình lên lớp chi tiết theo tuần của bạn</p>
         </div>
 
         {/* Week navigation controllers */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            value={currentDate.toISOString().split('T')[0]}
+            onChange={(e) => setCurrentDate(new Date(e.target.value))}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors focus:outline-none focus:border-blue-500"
+            title="Chọn ngày bất kỳ để xem thời khóa biểu tuần đó"
+          />
+          
+          <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
           <button
             onClick={handlePrevWeek}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 shadow-3xs cursor-pointer transition-colors"
@@ -87,11 +92,11 @@ export function ScheduleView({ studentProfile }: ScheduleViewProps) {
       </div>
 
       {/* Week indicator box */}
-      <Card className="p-4 bg-slate-50 border-slate-150 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <Card className="p-4 bg-slate-50 border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <Calendar className="h-4.5 w-4.5 text-blue-600" />
+          <Calendar className="h-5 w-5 text-blue-600" />
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-            Tuần học từ {monday.toLocaleDateString('vi-VN')} đến {sunday.toLocaleDateString('vi-VN')}
+            Tuần học từ <span className="text-blue-600">{monday.toLocaleDateString('vi-VN')}</span> đến <span className="text-blue-600">{sunday.toLocaleDateString('vi-VN')}</span>
           </span>
         </div>
         <div className="text-[11px] text-slate-400 font-medium">

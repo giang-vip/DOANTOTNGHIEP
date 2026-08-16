@@ -8,6 +8,8 @@ export interface AdminDashboardStats {
   totalClasses: number;
   attendanceRate: number;
   lowGpaStudentsCount: number;
-  attendanceChartData: ChartData[];
+  averageCreditCompletionRate: number;
   teacherChartData: ChartData[];
+  studentChartData: ChartData[];
+  gradeDistributionData: ChartData[];
 }

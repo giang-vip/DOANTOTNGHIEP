@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { AcademicYear, AcademicYearRequest } from '../../../models/admin/AcademicYear';
+import { AcademicYear, AcademicYearRequest } from '../../../models/AcademicYear';
 
 export function useAcademicYearListViewModel() {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);

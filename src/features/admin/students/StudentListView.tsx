@@ -2,7 +2,7 @@ import React from 'react';
 import { useStudentListViewModel } from './useStudentListViewModel';
 import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../components/UI';
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { Student } from '../../../models/admin/Student';
+import { Student } from '../../../models/Student';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface StudentListViewProps {
@@ -147,7 +147,6 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={isLoading}
               placeholder="Tìm theo mã sinh viên, họ tên..."
               className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
             />
@@ -355,8 +354,8 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
                 disabled={isLoading}
                 options={[
                   { value: 'ACTIVE', label: 'Đang học' },
-                  { value: 'SUSPENDED', label: 'Đình chỉ' },
-                  { value: 'DROPPED_OUT', label: 'Thôi học' },
+                  { value: 'INACTIVE', label: 'Đình chỉ' },
+                  { value: 'DROPPED', label: 'Thôi học' },
                   { value: 'GRADUATED', label: 'Đã tốt nghiệp' }
                 ]}
               />

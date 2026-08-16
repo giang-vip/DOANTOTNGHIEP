@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Enrollment, EnrollmentRequest } from '../../../models/admin/Enrollment';
-import { Student } from '../../../models/admin/Student';
-import { ClassSection } from '../../../models/admin/ClassSection';
+import { Enrollment, EnrollmentRequest } from '../../../models/Enrollment';
+import { Student } from '../../../models/Student';
+import { ClassSection } from '../../../models/ClassSection';
 
 export function useEnrollmentListViewModel() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -33,9 +33,9 @@ export function useEnrollmentListViewModel() {
         adminApi.getAllStudents(),
         adminApi.getAllClassSections()
       ]);
-      setEnrollments(enrollmentData || []);
-      setStudents(studentData || []);
-      setClassSections(classSectionData || []);
+      setEnrollments((enrollmentData as any)?.content || enrollmentData || []);
+      setStudents((studentData as any)?.content || studentData || []);
+      setClassSections((classSectionData as any)?.content || classSectionData || []);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải dữ liệu đăng ký học');
     } finally {

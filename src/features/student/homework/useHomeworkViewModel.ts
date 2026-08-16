@@ -1,21 +1,11 @@
-import { useState } from 'react';
-import { useStore } from '../../../models/store';
-import { Student, Assignment, Submission } from '../../../types';
-import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
+import { useState, useEffect, useMemo } from 'react';
+import { studentApi } from '../../../api/services/studentApi';
+import { Student, Assignment, Submission, ClassSection } from '../../../models';
 
 export function useHomeworkViewModel(studentProfile: Student) {
-  const {
-    classes,
-    assignments,
-    submissions,
-    addSubmission,
-    gradeSubmission
-  } = useStore();
-
-  const enrolledClassIds = getConsistentStudentClasses(classes, studentProfile).map(c => c.id);
-
-  // Filter assignments for enrolled classes
-  const homeworks = assignments.filter(a => enrolledClassIds.includes(a.classId));
+  const [enrolledClasses, setEnrolledClasses] = useState<ClassSection[]>([]);
+  const [homeworks, setHomeworks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [activeHomework, setActiveHomework] = useState<Assignment | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -23,116 +13,182 @@ export function useHomeworkViewModel(studentProfile: Student) {
   const [essayFile, setEssayFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<string | null>(null);
 
-  // Retrieve current student's submission for an assignment
-  const getSubmissionForAssignment = (asmId: string): Submission | undefined => {
-    return submissions.find(s => s.assignmentId === asmId && s.studentId === studentProfile.id);
+  // Fetch enrolled classes and all assignments on mount
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      const classesRes = await studentApi.getStudentClasses(0, 100);
+      const classesData = (classesRes as any)?.content || [];
+      setEnrolledClasses(classesData);
+
+      const allAsms: any[] = [];
+      for (const cls of classesData) {
+        const asmRes = await studentApi.getAssignments(cls.id, 0, 100);
+        const content = (asmRes as any)?.content || [];
+        // Inject classSection info
+        const formatted = content.map((a: any) => ({
+          ...a,
+          classId: String(cls.id),
+          className: cls.subjectName
+        }));
+        allAsms.push(...formatted);
+      }
+      setHomeworks(allAsms);
+    } catch (err) {
+      console.error('Lỗi tải danh sách bài tập:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStartHomework = (asm: Assignment) => {
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [quizResult, setQuizResult] = useState<any>(null);
+
+  const getSubmissionForAssignment = (asmId: string): Submission | undefined => {
+    const asm = homeworks.find(h => String(h.id) === asmId);
+    if (asm && asm.submissionId) {
+      return {
+        id: String(asm.submissionId),
+        assignmentId: String(asm.id),
+        classId: String(asm.classId),
+        studentId: studentProfile.id,
+        studentName: studentProfile.name,
+        content: '',
+        submittedAt: asm.submittedAt || '',
+        score: asm.submissionScore,
+        status: asm.submissionStatus?.toLowerCase() as any,
+        feedback: asm.submissionStatus === 'GRADED' ? 'Đã chấm điểm thành công' : undefined
+      };
+    }
+    return undefined;
+  };
+
+  const handleStartHomework = async (asm: Assignment) => {
     setActiveHomework(asm);
     setAnswers({});
     setEssayContent('');
     setEssayFile(null);
     setErrors(null);
+
+    // If it is a quiz, call startQuiz API to initialize the session in the DB
+    if (asm.type === 'quiz') {
+      try {
+        await studentApi.startQuiz(Number(asm.id));
+        
+        // Khởi tạo mock questions dựa trên questionCount của bài tập
+        const qCount = asm.questionCount || 10;
+        const mockQs = Array.from({ length: qCount }).map((_, i) => ({
+          id: String(i + 1),
+          assignmentId: asm.id,
+          order: i + 1,
+          points: (asm.maxPoints || 10) / qCount,
+        }));
+        setQuizQuestions(mockQs);
+
+      } catch (err) {
+        console.error('Lỗi khi bắt đầu Quiz:', err);
+      }
+    }
+  };
+
+  const loadQuizResult = async (asmId: string) => {
+    try {
+      const res = await studentApi.getQuizResult(Number(asmId));
+      const resultData = (res as any);
+      setQuizResult(resultData);
+      
+      const asm = homeworks.find(h => String(h.id) === asmId);
+
+      // Reconstruct questions từ answers
+      const reconstructedQs = (resultData.answers || []).map((ans: any) => ({
+        id: String(ans.questionId),
+        assignmentId: asmId,
+        order: ans.orderIndex || 1,
+        correctChoice: ans.correctChoice,
+        points: ans.pointsAwarded || 0,
+        explanationText: ans.explanationText,
+        questionText: ans.questionText,
+        choiceAText: '',
+        choiceBText: '',
+        choiceCText: '',
+        choiceDText: '',
+      }));
+      setQuizQuestions(reconstructedQs);
+    } catch (err) {
+      console.error('Lỗi khi tải kết quả quiz:', err);
+    }
   };
 
   const handleFileSelect = (selected: File) => {
     setEssayFile(selected);
   };
 
-  const handleSubmitHomework = (onSuccess: (msg: string) => void) => {
+  const handleSubmitHomework = async (onSuccess: (msg: string) => void) => {
     if (!activeHomework) return;
 
     const isQuiz = activeHomework.type === 'quiz';
     
     if (isQuiz) {
-      // Validate all answers are selected
-      const keys = (activeHomework as any).correctAnswers || '';
-      const keyPairs = keys.split(',').map((p: string) => p.trim().split('-'));
-      const totalQuestions = keyPairs.length;
-
+      // Validate answers are selected
+      const totalQuestions = activeHomework.questionCount || 0;
       if (Object.keys(answers).length < totalQuestions) {
         setErrors('Vui lòng hoàn thành tất cả câu hỏi trước khi nộp bài.');
         return;
       }
 
-      // Auto Grade
-      let correctCount = 0;
-      keyPairs.forEach(([qNum, correctAns]: [string, string]) => {
-        if (answers[qNum] === correctAns) {
-          correctCount++;
-        }
-      });
+      try {
+        // Map local answer state to Backend format: list of QuizAnswerRequest
+        // request payload: { answers: [ { questionId, selectedChoice } ] }
+        const payloadAnswers = Object.entries(answers).map(([qId, ans]) => ({
+          questionId: Number(qId),
+          selectedChoice: ans
+        }));
 
-      const rawScore = totalQuestions > 0 ? (correctCount / totalQuestions) * (activeHomework.maxPoints || 10) : 10;
-      const finalScore = Math.round(rawScore * 10) / 10;
+        const res = await studentApi.submitQuiz(Number(activeHomework.id), {
+          answers: payloadAnswers
+        });
 
-      // 1. Add submission
-      const subPayload: Omit<Submission, 'id' | 'submittedAt' | 'status'> = {
-        assignmentId: activeHomework.id,
-        classId: activeHomework.classId,
-        studentId: studentProfile.id,
-        studentName: studentProfile.name,
-        content: `Giải trắc nghiệm: ${JSON.stringify(answers)}`,
-        fileName: 'Auto-Graded Quiz Solution'
-      };
-
-      // Since addSubmission generates ID randomly, let's inject it into local storage
-      const savedSubs = JSON.parse(localStorage.getItem('hn_submissions') || '[]');
-      const newSubId = `SUB_${Math.floor(1000 + Math.random() * 9000)}`;
-      const newSub: Submission = {
-        id: newSubId,
-        ...subPayload,
-        submittedAt: new Date().toISOString(),
-        status: 'graded', // set to graded directly
-        score: finalScore,
-        feedback: `Hệ thống tự động chấm: Đúng ${correctCount}/${totalQuestions} câu hỏi. Đạt điểm tối đa: ${activeHomework.maxPoints}.`
-      };
-      
-      const updatedSubs = [...savedSubs, newSub];
-      localStorage.setItem('hn_submissions', JSON.stringify(updatedSubs));
-
-      // Also auto sync back to GradeRecord!
-      const savedGrades = JSON.parse(localStorage.getItem('hn_grades') || '[]');
-      const gradeId = `${activeHomework.classId}_${studentProfile.id}`;
-      const updatedGrades = savedGrades.map((g: any) => {
-        if (g.id === gradeId) {
-          return {
-            ...g,
-            progressScore: finalScore
-          };
-        }
-        return g;
-      });
-      localStorage.setItem('hn_grades', JSON.stringify(updatedGrades));
-
-      // Force window state reload of store
-      window.location.reload(); // Reload window to sync everything cleanly!
-      onSuccess(`Đã nộp bài trắc nghiệm thành công! Bạn đạt ${finalScore} / ${activeHomework.maxPoints} điểm.`);
+        const score = (res as any)?.totalScore || 0;
+        
+        await fetchAllData();
+        setActiveHomework(null);
+        onSuccess(`Đã nộp bài trắc nghiệm thành công! Bạn đạt ${score} / ${activeHomework.maxPoints} điểm.`);
+      } catch (err: any) {
+        console.error('Lỗi nộp bài trắc nghiệm:', err);
+        setErrors(err.response?.data?.message || 'Lỗi hệ thống khi nộp bài trắc nghiệm.');
+      }
     } else {
       // Essay Validation
-      if (!essayContent.trim() && !essayFile) {
-        setErrors('Vui lòng nhập nội dung bài làm tự luận hoặc tải file bài nộp lên.');
+      if (!essayContent.trim()) {
+        setErrors('Vui lòng nhập nội dung bài làm tự luận.');
         return;
       }
 
-      const subPayload: Omit<Submission, 'id' | 'submittedAt' | 'status'> = {
-        assignmentId: activeHomework.id,
-        classId: activeHomework.classId,
-        studentId: studentProfile.id,
-        studentName: studentProfile.name,
-        content: essayContent.trim(),
-        fileName: essayFile ? essayFile.name : undefined,
-        fileUrl: essayFile ? 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' : undefined
-      };
+      try {
+        let finalFileUrl = undefined;
+        if (essayFile) {
+          const uploadRes = await studentApi.uploadFile(essayFile);
+          finalFileUrl = (uploadRes as any); // Assuming ApiResponse.result is the string
+        }
 
-      addSubmission(subPayload);
-      onSuccess('Nộp bài tự luận thành công! Trạng thái: Chờ giảng viên chấm điểm.');
-      setActiveHomework(null);
+        await studentApi.submitAssignment(Number(activeHomework.id), {
+          content: essayContent.trim(),
+          fileUrl: finalFileUrl
+        });
+
+        await fetchAllData();
+        setActiveHomework(null);
+        onSuccess('Nộp bài tự luận thành công! Trạng thái: Chờ giảng viên chấm điểm.');
+      } catch (err: any) {
+        console.error('Lỗi nộp bài tự luận:', err);
+        setErrors(err.response?.data?.message || 'Lỗi hệ thống khi nộp bài tự luận.');
+      }
     }
   };
-
-  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
 
   return {
     homeworks,
@@ -147,6 +203,10 @@ export function useHomeworkViewModel(studentProfile: Student) {
     getSubmissionForAssignment,
     startHomework: handleStartHomework,
     handleFileSelect,
-    submitHomework: handleSubmitHomework
+    submitHomework: handleSubmitHomework,
+    loading,
+    quizQuestions,
+    quizResult,
+    loadQuizResult
   };
 }

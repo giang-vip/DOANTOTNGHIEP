@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { QuizQuestion, Assignment } from '../../../types';
-import { FileText, ArrowLeft, ArrowRight, CheckCircle, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Clock, Award } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { QuizQuestion, Assignment } from '../../../../models';
+import { FileText, ArrowLeft, CheckCircle, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Clock } from 'lucide-react';
 
 /**
  * Interface props cho component QuizTakingView.
@@ -29,9 +30,6 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
   onSubmit,
   onCancel,
 }) => {
-  // Index câu hỏi sinh viên đang chọn/xem (0-indexed)
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-
   // State lưu các đáp án sinh viên chọn: record questionId -> choice ('A' | 'B' | 'C' | 'D')
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
 
@@ -41,7 +39,6 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
   // State xác nhận nộp bài nếu còn câu chưa làm
   const [showSubmitConfirm, setShowSubmitConfirm] = useState<boolean>(false);
 
-  const currentQuestion = questions[currentIndex] || questions[0];
   const totalQuestions = questions.length;
   const answeredCount = Object.keys(selectedAnswers).length;
 
@@ -49,36 +46,35 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
   const examName = assignment.examFileName || 'DE_THI_CHINH_THUC.PDF';
   const isPdf = assignment.examFileType === 'pdf' || examName.toLowerCase().endsWith('.pdf');
 
-  // Đổi đáp án cho câu hỏi hiện tại
-  const handleSelectChoice = (choice: 'A' | 'B' | 'C' | 'D') => {
-    if (!currentQuestion) return;
+  // Đổi đáp án cho câu hỏi
+  const handleSelectChoice = (questionId: string, choice: 'A' | 'B' | 'C' | 'D') => {
     setSelectedAnswers((prev) => ({
       ...prev,
-      [currentQuestion.id]: choice,
+      [questionId]: choice,
     }));
   };
 
-  // Nhảy tới câu hỏi theo index
-  const handleJumpToQuestion = (index: number) => {
-    if (index >= 0 && index < totalQuestions) {
-      setCurrentIndex(index);
+  // Chuyển tới một câu hỏi (scroll mượt)
+  const handleJumpToQuestion = (id: string) => {
+    const el = document.getElementById(`question-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
-  // Tiến / Lùi câu hỏi
-  const handlePrev = () => handleJumpToQuestion(currentIndex - 1);
-  const handleNext = () => handleJumpToQuestion(currentIndex + 1);
-
   // Xử lý nộp bài
   const handleConfirmSubmit = () => {
-    const formattedAnswers = questions.map((q) => ({
-      questionId: q.id,
-      selectedChoice: selectedAnswers[q.id] || null,
-    }));
+    const formattedAnswers = questions.map((q) => {
+      const qIdStr = String(q.id);
+      return {
+        questionId: qIdStr,
+        selectedChoice: selectedAnswers[qIdStr] || null,
+      };
+    });
     onSubmit(formattedAnswers);
   };
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col w-full h-full overflow-hidden text-slate-800 font-sans">
       {/* 1. HEADER MÀN LÀM BÀI */}
       <div className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between border-b border-slate-800">
@@ -135,16 +131,14 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
 
             <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1">
               {questions.map((q, idx) => {
-                const isSelected = currentIndex === idx;
-                const isAnswered = !!selectedAnswers[q.id];
+                const qIdStr = String(q.id || idx);
+                const isAnswered = !!selectedAnswers[qIdStr];
 
                 return (
                   <button
-                    key={q.id || idx}
-                    onClick={() => handleJumpToQuestion(idx)}
-                    className={`w-10 h-10 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-300 shadow'
-                        : isAnswered
+                    key={qIdStr}
+                    onClick={() => handleJumpToQuestion(qIdStr)}
+                    className={`w-10 h-10 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center border cursor-pointer ${isAnswered
                           ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                           : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                       }`}
@@ -157,83 +151,65 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
             </div>
           </div>
 
-          {/* Khối làm bài câu đang xem */}
-          <div className="p-6 flex-1 overflow-y-auto space-y-6 flex flex-col justify-between">
-            {currentQuestion && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                  <span className="text-base font-extrabold text-slate-900">
-                    CÂU {currentIndex + 1} / {totalQuestions}
+          {/* Khối danh sách toàn bộ câu hỏi (Trải phẳng) */}
+          <div className="p-6 flex-1 overflow-y-auto space-y-6">
+            {questions.map((q, idx) => {
+              const qIdStr = String(q.id || idx);
+              return (
+              <div 
+                key={qIdStr} 
+                id={`question-${qIdStr}`}
+                className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <span className="text-sm font-extrabold text-slate-900">
+                    CÂU {idx + 1}
                   </span>
                   <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200">
-                    {currentQuestion.points ? currentQuestion.points.toFixed(2) : (10 / (totalQuestions || 1)).toFixed(2)} điểm
+                    {q.points ? q.points.toFixed(2) : (10 / (totalQuestions || 1)).toFixed(2)} điểm
                   </span>
                 </div>
 
                 {/* Text câu hỏi (nếu GV nhập) */}
-                {currentQuestion.questionText && (
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800">
-                    {currentQuestion.questionText}
+                {q.questionText && (
+                  <div className="text-xs font-medium text-slate-800 leading-relaxed">
+                    {q.questionText}
                   </div>
                 )}
 
-                {/* 4 Nút to A / B / C / D để Sinh viên chọn */}
-                <div className="space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    Hãy đọc đề bên phải và chọn 1 đáp án:
-                  </p>
+                {/* 4 Nút A / B / C / D */}
+                <div className="grid grid-cols-2 gap-3">
                   {(['A', 'B', 'C', 'D'] as const).map((choice) => {
-                    const isSelected = selectedAnswers[currentQuestion.id] === choice;
+                    const isSelected = selectedAnswers[qIdStr] === choice;
                     const choiceTextKey = `choice${choice}Text` as keyof QuizQuestion;
-                    const choiceText = currentQuestion[choiceTextKey] as string | undefined;
+                    const choiceText = q[choiceTextKey] as string | undefined;
 
                     return (
                       <button
                         key={choice}
-                        onClick={() => handleSelectChoice(choice)}
-                        className={`w-full p-4 rounded-xl border-2 text-left flex items-center gap-4 transition-all cursor-pointer ${isSelected
-                            ? 'bg-indigo-50 border-indigo-600 text-indigo-950 font-bold shadow-md ring-1 ring-indigo-600'
+                        onClick={() => handleSelectChoice(qIdStr, choice)}
+                        className={`p-3 rounded-lg border text-left flex items-center gap-3 transition-all cursor-pointer ${isSelected
+                            ? 'bg-indigo-50 border-indigo-600 text-indigo-950 shadow-sm ring-1 ring-indigo-600'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                           }`}
                       >
                         <span
-                          className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${isSelected
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 transition-colors ${isSelected
                               ? 'bg-indigo-600 text-white shadow'
-                              : 'bg-slate-100 text-slate-700 border border-slate-300'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                         >
                           {choice}
                         </span>
-                        <span className="text-sm font-semibold">
-                          {choiceText || `Phương án ${choice}`}
+                        <span className="text-xs font-semibold line-clamp-2">
+                          {choiceText || choice}
                         </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
-            )}
-
-            {/* Điều hướng Trước / Sau ở đáy cột trái */}
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
-              <button
-                onClick={handlePrev}
-                disabled={currentIndex === 0}
-                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Câu trước
-              </button>
-
-              <button
-                onClick={handleNext}
-                disabled={currentIndex === totalQuestions - 1}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                Câu tiếp
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+            )})}
           </div>
         </div>
 
@@ -243,9 +219,20 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
             <span className="uppercase tracking-wider text-slate-400">
               XEM NỘI DUNG ĐỀ THI CHÍNH THỨC
             </span>
-            <span className="font-mono text-slate-200 bg-slate-900 px-2.5 py-0.5 rounded border border-slate-700">
-              FILE: {examName}
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+                <button onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))} className="p-1 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Thu nhỏ">
+                  -
+                </button>
+                <span className="font-mono text-[10px] w-8 text-center">{zoomLevel}%</span>
+                <button onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))} className="p-1 hover:text-white hover:bg-slate-700 rounded transition-colors" title="Phóng to">
+                  +
+                </button>
+              </div>
+              <span className="font-mono text-slate-200 bg-slate-900 px-2.5 py-0.5 rounded border border-slate-700">
+                FILE: {examName}
+              </span>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto flex items-center justify-center p-4 bg-slate-900 relative">
@@ -258,13 +245,13 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
                   <iframe
                     src={`${examUrl}#toolbar=0`}
                     title="File đề thi"
-                    className="w-full h-[750px] rounded-lg shadow-2xl bg-white border border-slate-700"
+                    className="w-full h-full min-h-[85vh] rounded-lg shadow-2xl bg-white border border-slate-700"
                   />
                 ) : (
                   <img
                     src={examUrl}
                     alt="Đề thi chính thức"
-                    className="max-w-full max-h-[750px] object-contain rounded-lg shadow-2xl border border-slate-700 bg-white"
+                    className="max-w-full h-full min-h-[85vh] object-contain rounded-lg shadow-2xl border border-slate-700 bg-white"
                   />
                 )}
               </div>
@@ -387,4 +374,6 @@ export const QuizTakingView: React.FC<QuizTakingViewProps> = ({
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? ReactDOM.createPortal(content, document.body) : content;
 };

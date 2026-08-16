@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDashboardViewModel } from './useDashboardViewModel';
 import { Card, Badge } from '../../../components/UI';
-import { Student } from '../../../types';
+import { Student } from '../../../models';
 import { Award, BookOpen, Clock, Bell, Calendar, Sparkles } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -19,14 +19,31 @@ export function DashboardView({ studentProfile }: DashboardViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
+      {/* Top Banner (Greeting Card) */}
       <Card className="p-6 bg-gradient-to-r from-blue-700 via-indigo-750 to-slate-900 border-none text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
-        <div className="space-y-2 relative z-10">
+        <div className="space-y-3 relative z-10 w-full">
           <span className="text-[10px] font-bold tracking-widest text-blue-200 uppercase inline-flex items-center gap-1">
-            <Sparkles className="h-3 w-3 animate-spin" /> Học viên thông minh Hưng Nhân
+            <Sparkles className="h-3 w-3 animate-spin" /> Hệ thống quản lý học tập Hưng Nhân
           </span>
-          <h2 className="text-xl font-bold leading-tight">Chào mừng trở lại, {studentProfile.name}!</h2>
-          <p className="text-xs text-slate-300">Hôm nay là một ngày tuyệt vời để tiếp thu thêm kiến thức và tích lũy kỹ năng mới.</p>
+          
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between w-full gap-4">
+            <div>
+              <h2 className="text-2xl font-black leading-tight mb-1">Chào mừng, {studentProfile.fullName || studentProfile.name}!</h2>
+              <p className="text-sm text-blue-100 font-medium">Chúc bạn một học kỳ mới thật nhiều năng lượng và thành công.</p>
+            </div>
+            
+            {/* Student Info Card */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex flex-col gap-1.5 min-w-[200px]">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider">Mã SV</span>
+                <span className="font-mono text-sm font-bold text-white bg-black/20 px-1.5 py-0.5 rounded">{studentProfile.studentCode}</span>
+              </div>
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider">Chuyên ngành</span>
+                <span className="text-xs font-bold text-white text-right truncate max-w-[150px]">{studentProfile.majorName || 'Chưa cập nhật'}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -38,8 +55,8 @@ export function DashboardView({ studentProfile }: DashboardViewProps) {
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Điểm Trung Bình (GPA)</span>
-            <span className="text-2xl font-black text-slate-800 leading-none block mt-1">{gpa.toFixed(2)}</span>
-            <span className="text-[10px] text-slate-400 mt-1 block">Xếp loại: <strong className="text-slate-600">{gpa >= 3.6 ? 'Xuất sắc' : gpa >= 3.2 ? 'Giỏi' : gpa >= 2.5 ? 'Khá' : 'Trung bình'}</strong></span>
+            <span className="text-2xl font-black text-slate-800 leading-none block mt-1">{gpa.toFixed(2)} <span className="text-sm font-bold text-slate-400">/ 4.0</span></span>
+            <span className="text-[10px] text-slate-400 mt-1 block">Xếp loại: <strong className="text-slate-600">{gpa >= 3.6 ? 'Xuất sắc' : gpa >= 3.2 ? 'Giỏi' : gpa >= 2.5 ? 'Khá' : gpa >= 2.0 ? 'Trung bình' : 'Yếu'}</strong></span>
           </div>
         </Card>
 
@@ -97,13 +114,13 @@ export function DashboardView({ studentProfile }: DashboardViewProps) {
                     <div>
                       <h4 className="text-xs font-bold text-slate-850 leading-snug">{notif.title}</h4>
                       <span className="text-[9px] text-slate-400 block mt-1 font-medium">
-                        Phát từ <strong className="text-slate-600">{notif.sender}</strong> • {new Date(notif.createdAt).toLocaleDateString('vi-VN')} {new Date(notif.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        Phát từ <strong className="text-slate-600">{notif.createdByUsername || 'Hệ thống'}</strong> • {notif.createdAt ? new Date(notif.createdAt).toLocaleDateString('vi-VN') : ''} {notif.createdAt ? new Date(notif.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                     </div>
                   </div>
 
-                  <Badge variant={notif.recipientGroup === 'all' ? 'info' : 'gray'} className="text-[9px] shrink-0 leading-none">
-                    {notif.recipientGroup === 'all' ? 'Tin chung' : 'Tin lớp học'}
+                  <Badge variant={notif.classSectionId ? 'gray' : 'info'} className="text-[9px] shrink-0 leading-none">
+                    {notif.classSectionId ? 'Tin lớp học' : 'Tin chung'}
                   </Badge>
                 </div>
 

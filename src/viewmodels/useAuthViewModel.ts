@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import axiosClient from '../api/axiosClient';
-import { User, Student, Teacher } from '../types';
+import { User, Student, Teacher } from '../models';
 
 export function useAuthViewModel() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -58,24 +58,28 @@ export function useAuthViewModel() {
           userId: String(userResponse.id),
           name: mappedUser.name,
           email: mappedUser.email,
-          classCode: 'N/A',
           phone: mappedUser.phone || '',
+          studentCode: userResponse.studentCode || 'N/A',
+          majorName: userResponse.majorName || 'Chưa cập nhật',
+          classCode: userResponse.schoolClassName || 'Chưa phân lớp',
           status: 'active',
-          birthDate: '2000-01-01',
-          gender: 'Nam',
-          gpa: 0,
-          totalCredits: 0
-        } as Student);
+          dateOfBirth: userResponse.dateOfBirth || 'Chưa cập nhật',
+          gender: userResponse.gender || 'Chưa cập nhật',
+          gpa: userResponse.gpa || 0,
+          totalCredits: userResponse.totalCredits || 0
+        } as any);
       } else if (userRole === 'teacher') {
         setCurrentProfile({
           id: String(userResponse.id),
           userId: String(userResponse.id),
           name: mappedUser.name,
           email: mappedUser.email,
-          department: 'N/A',
           phone: mappedUser.phone || '',
+          teacherCode: userResponse.teacherCode || String(userResponse.id),
+          department: userResponse.departmentName || 'N/A',
+          title: userResponse.title || 'Giảng viên',
           status: 'active'
-        } as Teacher);
+        } as any);
       }
 
     } catch (err: any) {
@@ -113,16 +117,40 @@ export function useAuthViewModel() {
         setCurrentUser(mappedUser);
         
         if (mappedRole === 'student') {
-          setCurrentProfile({ id: mappedUser.id, userId: mappedUser.id, name: mappedUser.name, status: 'active' } as any);
+          setCurrentProfile({
+            id: String(mappedUser.id),
+            userId: String(mappedUser.id),
+            name: mappedUser.name,
+            email: mappedUser.email,
+            phone: response.userInfo?.phone || '',
+            studentCode: response.userInfo?.studentCode || 'N/A',
+            majorName: response.userInfo?.majorName || 'Chưa cập nhật',
+            classCode: response.userInfo?.schoolClassName || 'Chưa phân lớp',
+            status: 'active',
+            dateOfBirth: response.userInfo?.dateOfBirth || 'Chưa cập nhật',
+            gender: response.userInfo?.gender || 'Chưa cập nhật',
+            gpa: response.userInfo?.gpa || 0,
+            totalCredits: response.userInfo?.totalCredits || 0
+          } as any);
         } else if (mappedRole === 'teacher') {
-          setCurrentProfile({ id: mappedUser.id, userId: mappedUser.id, name: mappedUser.name, status: 'active' } as any);
+          setCurrentProfile({
+            id: String(mappedUser.id),
+            userId: String(mappedUser.id),
+            name: mappedUser.name,
+            email: mappedUser.email,
+            phone: response.userInfo?.phone || '',
+            teacherCode: response.userInfo?.teacherCode || String(mappedUser.id),
+            department: response.userInfo?.departmentName || 'N/A',
+            title: response.userInfo?.title || 'Giảng viên',
+            status: 'active'
+          } as any);
         }
 
         return mappedUser;
       }
       return null;
     } catch (err: any) {
-      setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
+      setError(err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
       return null;
     } finally {
       setIsLoading(false);

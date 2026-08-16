@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Department, DepartmentRequest } from '../../../models/admin/Department';
+import { Department, DepartmentRequest } from '../../../models/Department';
 
 export function useDepartmentListViewModel() {
   const [departments, setDepartments] = useState<Department[]>([]);

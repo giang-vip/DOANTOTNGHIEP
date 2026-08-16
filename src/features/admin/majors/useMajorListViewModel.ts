@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Major, MajorRequest } from '../../../models/admin/Major';
-import { Department } from '../../../models/admin/Department';
+import { Major, MajorRequest } from '../../../models/Major';
+import { Department } from '../../../models/Department';
 
 export function useMajorListViewModel() {
   const [majors, setMajors] = useState<Major[]>([]);

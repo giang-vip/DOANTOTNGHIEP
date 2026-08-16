@@ -12,6 +12,14 @@ export interface Student {
   classId?: number;
   classCode?: string;
   status?: string;
+  // UI extended properties from User mapping
+  name?: string;
+  email?: string;
+  phone?: string;
+  avatar?: string;
+  gpa?: number;
+  totalCredits?: number;
+  facePhotos?: string[];
 }
 
 export interface StudentRequest {

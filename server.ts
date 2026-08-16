@@ -21,10 +21,51 @@ app.post('/api/gemini/chat', async (req, res) => {
        return;
     }
 
+    const systemInstruction = `Bạn là "Hưng Nhân AI Study Buddy" - Trợ lý học tập thông minh tại Đại học Hưng Nhân.
+Nhiệm vụ của bạn là hỗ trợ sinh viên học tập tốt môn học: "${subjectName || 'Công nghệ thông tin'}".
+Hãy trả lời câu hỏi bằng tiếng Việt một cách khoa học, tận tâm, dễ hiểu và súc tích.
+Nếu học viên hỏi về lý thuyết, hãy giải thích cặn kẽ và cho ví dụ minh họa thực tế.
+Tuyệt đối không giải hộ toàn bộ bài tập lớn hoặc đề thi gốc, hãy đóng vai trò định hướng giải quyết vấn đề từng bước.`;
+
+    // 1. Cố gắng gọi Ollama Local Llama trước
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout for fast fallback
+      
+      const ollamaResponse = await fetch('http://localhost:11434/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3', // Mặc định là mô hình Llama3
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: prompt }
+          ],
+          stream: false
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (ollamaResponse.ok) {
+        const ollamaData: any = await ollamaResponse.json();
+        const aiText = ollamaData?.message?.content || ollamaData?.response;
+        if (aiText) {
+          console.log("[Hưng Nhân Local AI] Phản hồi thành công từ mô hình Llama cục bộ.");
+          res.json({ text: aiText });
+          return;
+        }
+      }
+    } catch (ollamaErr) {
+      console.warn("[Hưng Nhân Local AI] Ollama local offline hoặc lỗi. Đang chuyển hướng sang Gemini...");
+    }
+
+    // 2. Fallback sang Google Gemini nếu local Ollama không hoạt động
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
        res.status(200).json({
-        text: '⚠️ **Thông báo hệ thống:** Khóa bí mật `GEMINI_API_KEY` chưa được định cấu hình. Vui lòng truy cập menu **Settings > Secrets** trong giao diện AI Studio để thêm khóa API của bạn và trải nghiệm tính năng Trợ lý AI Study Buddy.'
+        text: '⚠️ **Thông báo hệ thống:** Cả mô hình local Llama (qua Ollama) và khóa API Gemini đều chưa được cấu hình. Vui lòng chạy Ollama (lệnh `ollama run llama3`) hoặc cấu hình `GEMINI_API_KEY` trong file `.env.local` để trải nghiệm.'
       });
       return;
     }
@@ -38,13 +79,6 @@ app.post('/api/gemini/chat', async (req, res) => {
         }
       }
     });
-
-    // Structure a system context for the model based on subject
-    const systemInstruction = `Bạn là "Hưng Nhân AI Study Buddy" - Trợ lý học tập thông minh tại Đại học Hưng Nhân.
-Nhiệm vụ của bạn là hỗ trợ sinh viên học tập tốt môn học: "${subjectName || 'Công nghệ thông tin'}".
-Hãy trả lời câu hỏi bằng tiếng Việt một cách khoa học, tận tâm, dễ hiểu và súc tích.
-Nếu học viên hỏi về lý thuyết, hãy giải thích cặn kẽ và cho ví dụ minh họa thực tế.
-Tuyệt đối không giải hộ toàn bộ bài tập lớn hoặc đề thi gốc, hãy đóng vai trò định hướng giải quyết vấn đề từng bước.`;
 
     // Call generateContent
     const response = await ai.models.generateContent({

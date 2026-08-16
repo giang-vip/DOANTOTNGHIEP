@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAnnouncementsViewModel } from './useAnnouncementsViewModel';
 import { Card, FormInput, Badge } from '../../../components/UI';
-import { Send, Bell, Trash2, Mail } from 'lucide-react';
+import { Send, Bell, Trash2, Mail, Edit } from 'lucide-react';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface AnnouncementsViewProps {
@@ -18,6 +18,9 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
     recipientGroup,
     setRecipientGroup,
     errors,
+    editingId,
+    handleEditClick,
+    handleCancelEdit,
     sendNotification,
     deleteNotification
   } = useAnnouncementsViewModel();
@@ -32,8 +35,12 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
       {/* Draft Section */}
       <div className="lg:col-span-1 space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Gửi Thông Báo Toàn Trường</h2>
-          <p className="text-xs text-slate-500">Soạn thảo văn bản và gửi qua email tới nhóm nhận chỉ định</p>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+            {editingId ? 'Sửa Thông Báo' : 'Gửi Thông Báo Toàn Trường'}
+          </h2>
+          <p className="text-xs text-slate-500">
+            {editingId ? 'Cập nhật lại nội dung thông báo' : 'Soạn thảo văn bản và gửi qua email tới nhóm nhận chỉ định'}
+          </p>
         </div>
 
         <Card className="p-5">
@@ -49,6 +56,7 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nhóm Người Nhận</label>
               <SearchableSelect
+                name="recipientGroup"
                 value={recipientGroup}
                 onChange={(val) => setRecipientGroup(String(val) as any)}
                 options={[
@@ -73,12 +81,23 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
               {errors.content && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.content}</p>}
             </div>
 
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
-            >
-              <Send className="h-4 w-4" /> Đăng & Gửi Email
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+              >
+                <Send className="h-4 w-4" /> {editingId ? 'Cập Nhật' : 'Đăng & Gửi Email'}
+              </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  Hủy
+                </button>
+              )}
+            </div>
           </form>
         </Card>
       </div>
@@ -117,6 +136,13 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
                       {notif.recipientGroup === 'all' ? 'Toàn trường' : notif.recipientGroup === 'teachers' ? 'Giảng viên' : 'Sinh viên'}
                     </Badge>
                     
+                    <button
+                      onClick={() => handleEditClick(notif)}
+                      className="p-1 rounded-md text-slate-350 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+
                     <button
                       onClick={() => deleteNotification(notif.id, (msg) => triggerToast(msg, 'success'))}
                       className="p-1 rounded-md text-slate-350 hover:text-rose-600 hover:bg-rose-50 transition-colors"

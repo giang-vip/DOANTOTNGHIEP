@@ -8,10 +8,10 @@ import { DashboardView } from '../features/student/dashboard/DashboardView';
 import { ScheduleView } from '../features/student/schedule/ScheduleView';
 import { RegistrationView } from '../features/student/registration/RegistrationView';
 import { StudyView } from '../features/student/study/StudyView';
-import { HomeworkView } from '../features/student/homework/HomeworkView';
+
 import { ProfileView } from '../features/student/profile/ProfileView';
 import { AcademicProgressView } from '../features/student/academic-progress/AcademicProgressView';
-import { Student } from '../types';
+import { Student } from '../models';
 
 interface StudentPortalProps {
   studentProfile: Student;
@@ -37,8 +37,6 @@ export const StudentPortal: React.FC<StudentPortalProps> = ({
       return <RegistrationView studentProfile={studentProfile} triggerToast={handleToast} />;
     case 'study':
       return <StudyView studentProfile={studentProfile} triggerToast={handleToast} />;
-    case 'homework':
-      return <HomeworkView studentProfile={studentProfile} triggerToast={handleToast} />;
     case 'academic-progress':
       return <AcademicProgressView studentProfile={studentProfile} />;
     case 'profile':

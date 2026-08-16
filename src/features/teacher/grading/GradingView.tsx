@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGradingViewModel, getDefaultColumnsConfig } from './useGradingViewModel';
 import { Card, Table, Modal, Badge } from '../../../components/UI';
-import { FileSpreadsheet, Sparkles, Printer, AlertCircle, CheckCircle, Save, Sliders } from 'lucide-react';
+import { FileSpreadsheet, Sparkles, Printer, AlertCircle, CheckCircle, Save, Sliders, Download, Upload } from 'lucide-react';
 import { convertToLetterGrade, convertToGpa4 } from '../../../utils/gradeUtils';
 
 interface GradingViewProps {
@@ -22,6 +22,7 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
     tempConfig,
     setTempConfig,
     localGrades,
+    setLocalGrades,
     updateLocalGrade,
     gradeRows,
     saveAllGrades,
@@ -55,6 +56,146 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
   const handleExportClick = () => {
     setIsExporting(true);
     triggerToast('Đã khởi tạo bản in báo cáo bảng điểm chính thức!', 'success');
+  };
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('printable-report-area');
+    if (!printContent) return;
+    const printWindow = window.open('about:blank', 'PrintWindow', 'left=100,top=100,width=850,height=800');
+    if (!printWindow) return;
+    
+    // Copy the styling to print window
+    let stylesHtml = '';
+    for (const node of Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))) {
+      stylesHtml += node.outerHTML;
+    }
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>In Bảng Điểm Học Phần</title>
+          ${stylesHtml}
+          <style>
+            body { background: white; color: black; padding: 40px; font-family: sans-serif; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+  };
+
+  const handleExportCSV = () => {
+    if (!selectedClass) return;
+    
+    // Build CSV headers
+    const headers = ['MSSV', 'Học Viên', 'Chuyên Cần', ...columnsConfig.map(col => col.name), 'Tổng Kết'];
+    
+    // Build CSV rows
+    const rows = gradeRows.map(r => {
+      const colValues = columnsConfig.map(col => r.inputs[col.key] ?? '');
+      return [
+        r.studentId,
+        r.studentName,
+        r.attendance,
+        ...colValues,
+        r.final !== undefined ? r.final.toFixed(1) : ''
+      ];
+    });
+    
+    // UTF-8 BOM to display Vietnamese characters correctly in Excel
+    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(row => row.map(v => `"${v}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Bang_Diem_Lop_${selectedClass.sectionCode || selectedClass.id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    triggerToast('Xuất file mẫu CSV thành công! Mở bằng Excel để nhập điểm.', 'success');
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length < 2) {
+          triggerToast('File CSV không đúng định dạng hoặc trống', 'danger');
+          return;
+        }
+        
+        // Parse headers to find indexes
+        const headers = lines[0].split(',').map(h => h.replace(/^["'\uFEFF]|["']$/g, '').trim());
+        const mssvIdx = headers.indexOf('MSSV');
+        const ccIdx = headers.indexOf('Chuyên Cần');
+        
+        // Find column indexes based on config
+        const colIndexes: Record<string, number> = {};
+        columnsConfig.forEach(col => {
+          colIndexes[col.key] = headers.indexOf(col.name);
+        });
+        
+        if (mssvIdx === -1) {
+          triggerToast('Không tìm thấy cột "MSSV" trong file CSV!', 'danger');
+          return;
+        }
+        
+        const updatedGrades = { ...localGrades };
+        let count = 0;
+        
+        for (let i = 1; i < lines.length; i++) {
+          const cells = lines[i].split(',').map(c => c.replace(/^["']|["']$/g, '').trim());
+          const mssv = cells[mssvIdx];
+          if (!mssv) continue;
+          
+          if (!updatedGrades[mssv]) {
+            updatedGrades[mssv] = {};
+          }
+          
+          // Import attendance if present
+          if (ccIdx !== -1 && cells[ccIdx] !== undefined && cells[ccIdx] !== '' && cells[ccIdx] !== '—') {
+            const val = parseFloat(cells[ccIdx]);
+            if (!isNaN(val)) updatedGrades[mssv].attendanceScore = Math.max(0, Math.min(10, val));
+          }
+          
+          // Import configured columns
+          columnsConfig.forEach(col => {
+            const colIdx = colIndexes[col.key];
+            if (colIdx !== undefined && colIdx !== -1 && cells[colIdx] !== undefined && cells[colIdx] !== '' && cells[colIdx] !== '—') {
+              const val = parseFloat(cells[colIdx]);
+              if (!isNaN(val)) updatedGrades[mssv][col.key] = Math.max(0, Math.min(10, val));
+            }
+          });
+          count++;
+        }
+        
+        setLocalGrades(updatedGrades);
+        triggerToast(`Đã nạp thành công điểm của ${count} sinh viên từ file CSV. Hãy bấm "Lưu bảng điểm" để lưu lên hệ thống!`, 'success');
+      } catch (err) {
+        console.error(err);
+        triggerToast('Lỗi khi đọc file CSV!', 'danger');
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+    e.target.value = ''; // Reset input
   };
 
   // Define columns for the React table element
@@ -143,33 +284,54 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
             <select
               value={selectedClass?.id || ''}
               onChange={(e) => {
-                const found = myClasses.find(c => c.id === e.target.value);
+                const found = myClasses.find(c => String(c.id) === e.target.value);
                 if (found) setSelectedClass(found);
               }}
               className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700 cursor-pointer shadow-3xs"
             >
               {myClasses.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.id} - {cls.subjectName}
+                  {cls.sectionCode || `LHP-${cls.id}`} - {cls.subjectName}
                 </option>
               ))}
             </select>
           </div>
 
           {selectedClass && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
               <button
                 onClick={() => {
                   setTempConfig([...columnsConfig]);
                   setIsConfiguring(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
               >
                 <Sliders className="h-3.5 w-3.5" /> Thiết lập trọng số
               </button>
               <button
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                title="Tải mẫu bảng điểm để nhập ngoại tuyến bằng Excel"
+              >
+                <Download className="h-3.5 w-3.5" /> Xuất mẫu CSV
+              </button>
+              <div className="relative">
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  onChange={handleImportCSV} 
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Upload className="h-3.5 w-3.5" /> Nhập từ CSV
+                </button>
+              </div>
+              <button
                 onClick={handleExportClick}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5" /> Xuất bảng điểm (PDF)
               </button>
@@ -224,7 +386,7 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
           size="lg"
         >
           <div className="space-y-6">
-            <div className="border border-slate-300 p-8 bg-white text-black space-y-8 select-none font-sans shadow-md rounded-xs">
+            <div id="printable-report-area" className="border border-slate-300 p-8 bg-white text-black space-y-8 select-none font-sans shadow-md rounded-xs">
               {/* Formal heading */}
               <div className="flex justify-between items-start text-[10px] font-semibold uppercase leading-tight">
                 <div className="text-center">
@@ -304,7 +466,7 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
 
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => window.print()}
+                onClick={handlePrint}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
                 <Printer className="h-4 w-4" /> Gửi tới máy in
@@ -393,7 +555,7 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
                       type="number"
                       min="0"
                       max="100"
-                      value={Math.round(col.weight * 100)}
+                      value={col.weight !== undefined && !isNaN(col.weight) ? Math.round(col.weight * 100) : ''}
                       onChange={(e) => {
                         const updated = [...tempConfig];
                         updated[idx].weight = (parseInt(e.target.value) || 0) / 100;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../../models/admin/UserAdmin';
+import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../../models/UserAdmin';
 
 export function useUserListViewModel() {
   const [users, setUsers] = useState<UserAdmin[]>([]);
@@ -139,14 +139,16 @@ export function useUserListViewModel() {
     setIsLoading(true);
     try {
       if (editingItem && editingItem.id) {
-        await adminApi.updateUser(editingItem.id, formData as UserUpdateRequest);
+        const updatedUser = await adminApi.updateUser(editingItem.id, formData as UserUpdateRequest);
+        setUsers(prev => prev.map(u => u.id === editingItem.id ? updatedUser : u));
         onSuccess(`Đã cập nhật người dùng ${formData.fullName} thành công!`);
       } else {
-        await adminApi.createUser(formData as UserCreationRequest);
+        const newUser = await adminApi.createUser(formData as UserCreationRequest);
+        setUsers(prev => [newUser, ...prev]);
+        setTotalElements(prev => prev + 1);
         onSuccess(`Đã tạo tài khoản ${formData.fullName} thành công!`);
       }
       setIsModalOpen(false);
-      fetchData();
     } catch (err: any) {
       alert(err.message || 'Có lỗi xảy ra khi lưu người dùng');
     } finally {
@@ -159,10 +161,34 @@ export function useUserListViewModel() {
       setIsLoading(true);
       try {
         await adminApi.deleteUser(id);
+        setUsers(prev => prev.filter(u => u.id !== id));
+        setTotalElements(prev => prev - 1);
         onSuccess(`Đã xóa tài khoản ${username} thành công!`);
-        fetchData();
       } catch (err: any) {
         alert(err.message || 'Lỗi khi xóa người dùng');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleResetPassword = async (user: UserAdmin, onSuccess: (msg: string) => void) => {
+    if (confirm(`Bạn có chắc chắn muốn đặt lại mật khẩu cho tài khoản ${user.username} về mặc định (123456) không?`)) {
+      setIsLoading(true);
+      try {
+        const updateReq: UserUpdateRequest = {
+          email: user.email,
+          fullName: user.fullName,
+          gender: user.gender,
+          status: user.status,
+          roles: user.roles?.map(r => r.name) || [],
+          password: '123456'
+        };
+        const updatedUser = await adminApi.updateUser(user.id, updateReq);
+        setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
+        onSuccess(`Khôi phục mật khẩu cho ${user.username} thành công!`);
+      } catch (err: any) {
+        alert(err.message || 'Lỗi khi khôi phục mật khẩu');
       } finally {
         setIsLoading(false);
       }
@@ -195,6 +221,7 @@ export function useUserListViewModel() {
     handleInputChange,
     handleRoleChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleResetPassword
   };
 }

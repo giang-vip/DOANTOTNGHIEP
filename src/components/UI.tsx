@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Upload, X, Calendar, Clock } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { Upload, X, Calendar, Clock, Eye, EyeOff } from 'lucide-react';
 
 // === BADGE ===
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -59,8 +60,8 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
     xl: 'max-w-4xl'
   }[size];
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] overflow-y-auto">
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity" onClick={onClose} />
         
@@ -85,6 +86,10 @@ export function Modal({ isOpen, onClose, title, children, footer, size = 'md' }:
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? ReactDOM.createPortal(modalContent, document.body)
+    : modalContent;
 }
 
 // === FORM INPUT ===
@@ -94,23 +99,39 @@ interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
-  ({ label, error, className = '', ...props }, ref) => {
+  ({ label, error, className = '', type = 'text', ...props }, ref) => {
+    const [showPassword, setShowPassword] = React.useState(false);
+    const isPasswordType = type === 'password';
+    const inputType = isPasswordType ? (showPassword ? 'text' : 'password') : type;
+
     return (
-      <div className="w-full">
+      <div className="w-full relative">
         {label && (
           <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
             {label}
           </label>
         )}
-        <input
-          ref={ref}
-          className={`w-full px-3.5 py-2 rounded-lg border text-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 ${
-            error
-              ? 'border-rose-300 bg-rose-50/20 text-rose-900 placeholder-rose-350 focus:border-rose-500 focus:ring-rose-500/10'
-              : 'border-slate-200 bg-white text-slate-800 placeholder-slate-400'
-          } ${className}`}
-          {...props}
-        />
+        <div className="relative">
+          <input
+            ref={ref}
+            type={inputType}
+            className={`w-full px-3.5 py-2 rounded-lg border text-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 ${
+              error
+                ? 'border-rose-300 bg-rose-50/20 text-rose-900 placeholder-rose-350 focus:border-rose-500 focus:ring-rose-500/10'
+                : 'border-slate-200 bg-white text-slate-800 placeholder-slate-400'
+            } ${isPasswordType ? 'pr-10' : ''} ${className}`}
+            {...props}
+          />
+          {isPasswordType && (
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          )}
+        </div>
         {error && <p className="mt-1 text-xs text-rose-600 font-medium">{error}</p>}
       </div>
     );

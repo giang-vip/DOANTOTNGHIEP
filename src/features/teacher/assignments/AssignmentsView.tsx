@@ -2,13 +2,14 @@ import React from 'react';
 import { useAssignmentsViewModel } from './useAssignmentsViewModel';
 import { Card, Table, Modal, FormInput, Badge } from '../../../components/UI';
 import { ExamReviewView } from '../../../components/ExamReviewView';
-import { Award, Search, Plus, Trash2, Calendar, FileText, CheckCircle2, UserCheck, Play, ChevronRight, X, Sparkles } from 'lucide-react';
+import { DocumentPreviewer } from '../../../components/DocumentPreviewer';
+import { Award, Search, Plus, Trash2, Calendar, FileText, CheckCircle2, UserCheck, Play, ChevronRight, X, Sparkles, Upload, Eye, Download, Edit2, BookOpen } from 'lucide-react';
 import { QuizExamBuilderView } from './QuizExamBuilderView';
-import { useStore } from '../../../models/store';
+import { teacherApi } from '../../../api/services/teacherApi';
 
 interface AssignmentsViewProps {
   teacherId: string;
-  triggerToast: (msg: string, type: 'success' | 'danger') => void;
+  triggerToast: (msg: string, type: 'success' | 'danger' | 'info' | 'warning') => void;
 }
 
 export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProps) {
@@ -20,9 +21,12 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
     selectedAssignment,
     setSelectedAssignment,
     submissions,
+    quizQuestions,
+    configureQuiz,
     isModalOpen,
     setIsModalOpen,
     openAddModal,
+    fetchClassAssignments,
     title,
     setTitle,
     description,
@@ -33,6 +37,12 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
     setMaxPoints,
     asmType,
     setAsmType,
+    examFileUrl,
+    setExamFileUrl,
+    examFileName,
+    setExamFileName,
+    examFileType,
+    setExamFileType,
     questionCount,
     setQuestionCount,
     errors,
@@ -55,11 +65,81 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
     submitTestSolve
   } = useAssignmentsViewModel(teacherId);
 
-  const { updateAssignment, quizQuestions, setQuizQuestionsForAssignment } = useStore();
-
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [reviewSubmission, setReviewSubmission] = React.useState<any | null>(null);
   const [isQuizManagerOpen, setIsQuizManagerOpen] = React.useState(false);
+  const [isPreviewExamOpen, setIsPreviewExamOpen] = React.useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [editTitle, setEditTitle] = React.useState('');
+  const [editDescription, setEditDescription] = React.useState('');
+  const [editDueDate, setEditDueDate] = React.useState('');
+  const [editMaxPoints, setEditMaxPoints] = React.useState(10);
+
+  const handleOpenEditModal = () => {
+    if (!selectedAssignment) return;
+    setEditTitle(selectedAssignment.title);
+    setEditDescription(selectedAssignment.description || '');
+    
+    if (selectedAssignment.dueDate) {
+      const date = new Date(selectedAssignment.dueDate);
+      const tzOffset = date.getTimezoneOffset() * 60000;
+      const localTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+      setEditDueDate(localTime);
+    } else {
+      setEditDueDate('');
+    }
+    
+    setEditMaxPoints(selectedAssignment.maxPoints || 10);
+    setExamFileUrl(selectedAssignment.examFileUrl || '');
+    setExamFileName(selectedAssignment.examFileName || '');
+    setExamFileType(selectedAssignment.examFileType || 'pdf');
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditAction = async () => {
+    if (!selectedAssignment) return;
+    if (!editTitle.trim()) {
+      triggerToast('Tiêu đề không được để trống', 'danger');
+      return;
+    }
+    if (!editDueDate) {
+      triggerToast('Hạn nộp không được để trống', 'danger');
+      return;
+    }
+
+    try {
+      await teacherApi.updateAssignment(Number(selectedAssignment.id), {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        dueAt: new Date(editDueDate).toISOString(),
+        maxPoints: editMaxPoints,
+        type: selectedAssignment.type,
+        examFileUrl: examFileUrl || undefined,
+        examFileName: examFileName || undefined,
+        examFileType: examFileType || undefined,
+        questionCount: selectedAssignment.questionCount || 4
+      });
+
+      const updated = {
+        ...selectedAssignment,
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        dueDate: new Date(editDueDate).toISOString(),
+        maxPoints: editMaxPoints,
+        examFileUrl: examFileUrl,
+        examFileName: examFileName,
+        examFileType: examFileType
+      };
+      setSelectedAssignment(updated);
+
+      triggerToast('Cập nhật bài tập thành công!', 'success');
+      setIsEditModalOpen(false);
+      fetchClassAssignments();
+    } catch (err: any) {
+      console.error(err);
+      triggerToast('Lỗi khi cập nhật bài tập: ' + (err.message || 'Lỗi hệ thống'), 'danger');
+    }
+  };
 
   const handleCreateAction = () => {
     createAssignment((msg) => triggerToast(msg, 'success'));
@@ -71,6 +151,39 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
 
   const handleSubmitSolveAction = () => {
     submitTestSolve((msg) => triggerToast(msg, 'success'));
+  };
+
+  const [isUploading, setIsUploading] = React.useState(false);
+
+  const handleAssignmentFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent<HTMLDivElement>) => {
+    let file: File | undefined;
+    if ('files' in e.target) {
+      file = e.target.files?.[0];
+    } else if ('dataTransfer' in e) {
+      e.preventDefault();
+      file = e.dataTransfer.files?.[0];
+    }
+
+    if (!file) return;
+
+    const isPdfFile = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isImgFile = file.type.startsWith('image/');
+    const fileType: 'pdf' | 'image' = isPdfFile ? 'pdf' : 'image';
+
+    try {
+      setIsUploading(true);
+      triggerToast('Đang tải tệp đính kèm bài tập lên Cloudinary...', 'info');
+      const url = await teacherApi.uploadFile(file);
+      setExamFileUrl(url as any);
+      setExamFileName(file.name);
+      setExamFileType(fileType);
+      triggerToast('Đã tải lên tệp đính kèm bài tập thành công!', 'success');
+    } catch (err: any) {
+      console.error(err);
+      triggerToast('Lỗi tải tệp lên Cloudinary: ' + (err.message || 'Lỗi hệ thống'), 'danger');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const submissionColumns = [
@@ -142,14 +255,14 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
             <select
               value={selectedClass?.id || ''}
               onChange={(e) => {
-                const found = myClasses.find(c => c.id === e.target.value);
+                const found = myClasses.find(c => String(c.id) === e.target.value);
                 if (found) setSelectedClass(found);
               }}
               className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
             >
               {myClasses.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.id} - {cls.subjectName}
+                  {cls.sectionCode || `LHP-${cls.id}`} - {cls.subjectName}
                 </option>
               ))}
             </select>
@@ -237,42 +350,111 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                   </div>
 
                   {/* Quiz questions or text input */}
-                  {(selectedAssignment as any).type === 'tracnghiem' ? (
+                  {(selectedAssignment as any).type === 'quiz' || (selectedAssignment as any).type === 'tracnghiem' ? (
                     <div className="space-y-4 pt-2">
-                      <p className="text-xs font-bold text-slate-700">Bộ câu hỏi kiểm tra:</p>
+                      <p className="text-xs font-bold text-slate-700">Bộ câu hỏi trắc nghiệm đã cấu hình:</p>
 
-                      {/* Questions loop */}
-                      {[1, 2, 3, 4].map((qNum) => (
-                        <div key={qNum} className="p-3 bg-white border border-slate-150 rounded-lg space-y-2">
-                          <p className="text-xs font-bold text-slate-700">Câu hỏi {qNum}: Chọn đáp án đúng?</p>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {['a', 'b', 'c', 'd'].map((ans) => {
-                              const isChecked = testAnswers[qNum] === ans;
-                              return (
-                                <button
-                                  key={ans}
-                                  onClick={() => setTestAnswers(prev => ({ ...prev, [qNum]: ans }))}
-                                  className={`py-1.5 px-3 rounded-lg border text-xs font-bold capitalize transition-all cursor-pointer ${isChecked
-                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                                    }`}
-                                >
-                                  Đáp án {ans}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                      {(() => {
+                        const activeQs = quizQuestions.filter(q => q.assignmentId === selectedAssignment.id);
+                        const displayQs = activeQs.length > 0 
+                          ? activeQs 
+                          : Array.from({ length: selectedAssignment.questionCount || 4 }, (_, i) => ({
+                              id: `mock_${i}`,
+                              order: i + 1,
+                              questionText: `Câu hỏi ${i + 1}`,
+                              correctChoice: 'A'
+                            }));
+
+                        return displayQs.map((q) => {
+                          const qNum = q.order;
+                          return (
+                            <div key={q.id || qNum} className="p-3 bg-white border border-slate-150 rounded-lg space-y-2">
+                              <p className="text-xs font-bold text-slate-700">Câu hỏi {qNum}: {q.questionText || 'Chọn đáp án đúng?'}</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                {['A', 'B', 'C', 'D'].map((ans) => {
+                                  const isChecked = testAnswers[qNum] === ans;
+                                  return (
+                                    <button
+                                      key={ans}
+                                      type="button"
+                                      onClick={() => setTestAnswers(prev => ({ ...prev, [qNum]: ans }))}
+                                      className={`py-1.5 px-3 rounded-lg border text-xs font-bold capitalize transition-all cursor-pointer ${isChecked
+                                        ? 'bg-blue-600 border-blue-600 text-white'
+                                        : 'bg-slate-50 border-slate-200 text-slate-750 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                      Đáp án {ans}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   ) : (
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase">Nội dung bài làm (văn bản hoặc link nộp tài liệu)</label>
-                      <textarea
-                        rows={4}
-                        placeholder="Mô phỏng nội dung sinh viên soạn thảo..."
-                        className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:outline bg-white text-slate-750"
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-650 mb-1.5 uppercase tracking-wide">Soạn thảo văn bản bài làm</label>
+                        <textarea
+                          rows={4}
+                          value={testAnswers['essayText'] || ''}
+                          onChange={(e) => setTestAnswers(prev => ({ ...prev, essayText: e.target.value }))}
+                          placeholder="Mô phỏng nội dung sinh viên soạn thảo bài giải tự luận..."
+                          className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:outline-hidden bg-white text-slate-750"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-650 mb-1.5 uppercase tracking-wide">Hoặc Nộp bằng link Drive/Github</label>
+                          <input
+                            type="text"
+                            value={testAnswers['essayLink'] || ''}
+                            onChange={(e) => setTestAnswers(prev => ({ ...prev, essayLink: e.target.value }))}
+                            placeholder="Ví dụ: Link Google Drive bài giải..."
+                            className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:outline bg-white text-slate-750"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-650 mb-1.5 uppercase tracking-wide">Hoặc Đính kèm tệp tin giải pháp</label>
+                          <div className="relative border border-dashed border-slate-300 bg-white rounded-lg p-2.5 text-center text-xs text-slate-500 hover:border-blue-500 transition-all cursor-pointer">
+                            <input
+                              type="file"
+                              accept=".pdf,image/*,.docx,.zip"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  triggerToast('Đang tải tệp bài làm lên Cloudinary...', 'info');
+                                  const res: any = await teacherApi.uploadFile(file);
+                                  const fileUrl = res.url || res.data?.url || res;
+                                  setTestAnswers(prev => ({ 
+                                    ...prev, 
+                                    essayFileUrl: typeof fileUrl === 'string' ? fileUrl : String(fileUrl), 
+                                    essayFileName: file.name 
+                                  }));
+                                  triggerToast('Đã đính kèm tệp bài làm giải thử!', 'success');
+                                } catch (err: any) {
+                                  triggerToast('Lỗi tải tệp: ' + (err.message || 'Lỗi hệ thống'), 'danger');
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                            />
+                            {testAnswers['essayFileName'] ? (
+                              <div className="text-emerald-600 font-bold truncate">
+                                ✓ Đính kèm: {testAnswers['essayFileName']}
+                              </div>
+                            ) : (
+                              <div className="text-slate-400">
+                                Kéo thả hoặc chọn tệp (.pdf, .docx, .zip)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -304,8 +486,8 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                 <Card className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={(selectedAssignment as any).type === 'tracnghiem' ? 'info' : 'gray'}>
-                        {(selectedAssignment as any).type === 'tracnghiem' ? 'Trắc nghiệm' : 'Tự luận'}
+                      <Badge variant={(selectedAssignment as any).type === 'quiz' || (selectedAssignment as any).type === 'tracnghiem' ? 'info' : 'gray'}>
+                        {(selectedAssignment as any).type === 'quiz' || (selectedAssignment as any).type === 'tracnghiem' ? 'Trắc nghiệm' : 'Tự luận'}
                       </Badge>
                       <span className="text-[10px] text-slate-400 font-mono">ID: {selectedAssignment.id}</span>
                     </div>
@@ -334,6 +516,14 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                       </button>
                     )}
                     <button
+                      type="button"
+                      onClick={handleOpenEditModal}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-colors cursor-pointer"
+                      title="Sửa bài tập"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => deleteAssignment(selectedAssignment.id, selectedAssignment.title, (msg) => triggerToast(msg, 'success'))}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors"
                       title="Xóa bài tập"
@@ -342,6 +532,40 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                     </button>
                   </div>
                 </Card>
+
+                {/* Attached Exam File Previewer / Information block */}
+                {selectedAssignment.examFileUrl && (
+                  <Card className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-3xs">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg">
+                        <FileText className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 leading-tight">Đề bài đính kèm</p>
+                        <p className="text-[10px] text-slate-450 mt-1 font-semibold truncate max-w-[240px]">
+                          {selectedAssignment.examFileName || 'de_bai.pdf'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsPreviewExamOpen(true)}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer shadow-3xs flex items-center gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Xem đề bài
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => window.open(selectedAssignment.examFileUrl, '_blank')}
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-650 hover:text-slate-800 rounded-lg border border-slate-200/50 transition-colors cursor-pointer"
+                        title="Tải về file đề bài"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </Card>
+                )}
 
                 {/* Submissions list */}
                 <div className="space-y-3">
@@ -425,8 +649,8 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
                   onChange={(e: any) => setAsmType(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline bg-white text-slate-700"
                 >
-                  <option value="tracnghiem">Trắc nghiệm (Tự động chấm)</option>
-                  <option value="tuluan">Tự luận (Chấm thủ công)</option>
+                  <option value="quiz">Trắc nghiệm (Tự động chấm)</option>
+                  <option value="essay">Tự luận (Chấm thủ công)</option>
                 </select>
               </div>
 
@@ -500,10 +724,49 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Đính kèm file đề bài (Tùy chọn)</label>
-              <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-white text-center text-xs text-slate-500">
-                <FileText className="h-5 w-5 text-slate-400 mx-auto mb-1.5" />
-                <span className="font-medium text-blue-600 hover:underline cursor-pointer">Chọn tệp đính kèm</span> hoặc kéo thả tại đây
-                <span className="block text-[9px] text-slate-400 mt-0.5">Hỗ trợ PDF, ZIP, DOCX tối đa 15MB</span>
+              <div 
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleAssignmentFileUpload}
+                className="relative border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-lg p-4 bg-white text-center text-xs text-slate-500 transition-all hover:bg-slate-50/50"
+              >
+                <input 
+                  type="file"
+                  accept=".pdf,image/*,.zip,.docx,.doc"
+                  onChange={handleAssignmentFileUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  disabled={isUploading}
+                />
+                {isUploading ? (
+                  <div className="space-y-1">
+                    <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-1.5"></div>
+                    <p className="text-blue-600 font-semibold">Đang tải lên Cloudinary...</p>
+                  </div>
+                ) : examFileName ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                    <div className="text-left">
+                      <p className="font-bold text-slate-800 truncate max-w-[180px]">{examFileName}</p>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setExamFileUrl('');
+                          setExamFileName('');
+                        }}
+                        className="text-[10px] text-rose-600 hover:underline font-semibold block mt-0.5"
+                      >
+                        Gỡ bỏ file
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5 text-slate-400 mx-auto mb-1.5" />
+                    <span className="font-medium text-blue-600 hover:underline">Chọn tệp đính kèm</span> hoặc kéo thả tại đây
+                    <span className="block text-[9px] text-slate-400 mt-0.5">Hỗ trợ PDF, Image, ZIP, DOCX tối đa 15MB</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -591,6 +854,7 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
           isOpen={!!activeSubmission}
           onClose={() => setActiveSubmission(null)}
           title={`Chấm Điểm: ${activeSubmission.studentName}`}
+          size="xl"
           footer={
             <>
               <button
@@ -609,9 +873,23 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
           }
         >
           <div className="space-y-4">
-            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-150 text-xs">
-              <span className="font-semibold block text-slate-500 uppercase text-[9px] tracking-wider mb-1">Nội dung bài làm của học viên</span>
-              <p className="text-slate-800 font-medium whitespace-pre-line leading-relaxed">{activeSubmission.content || 'Sinh viên nộp đính kèm link/file.'}</p>
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-150 text-sm">
+              <span className="font-semibold block text-slate-500 uppercase text-[10px] tracking-wider mb-2">Nội dung bài làm của học viên</span>
+              <div className="max-h-96 overflow-y-auto pr-2">
+                <p className="text-slate-800 font-medium whitespace-pre-line leading-relaxed">{activeSubmission.content || 'Sinh viên nộp đính kèm link/file.'}</p>
+              </div>
+              {activeSubmission.fileUrl && (
+                <div className="mt-3">
+                  <a
+                    href={activeSubmission.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-bold transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> Mở / Tải về file bài làm
+                  </a>
+                </div>
+              )}
             </div>
 
             <FormInput
@@ -625,13 +903,13 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
             />
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nhận xét bài làm</label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nhận xét bài làm</label>
               <textarea
                 value={gradeFeedback}
                 onChange={(e) => setGradeFeedback(e.target.value)}
-                rows={3}
+                rows={5}
                 placeholder="Ví dụ: Bài giải tốt, trình bày khoa học..."
-                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:outline bg-white text-slate-750"
+                className="w-full px-3.5 py-3 rounded-lg border border-slate-200 text-sm focus:outline-blue-500 bg-white text-slate-800 resize-y"
               />
             </div>
           </div>
@@ -655,13 +933,149 @@ export function AssignmentsView({ teacherId, triggerToast }: AssignmentsViewProp
           teacherId={teacherId}
           assignment={selectedAssignment}
           existingQuestions={quizQuestions.filter(q => q.assignmentId === selectedAssignment.id)}
-          onSave={(assignmentUpdates, newQuestions) => {
-            updateAssignment(selectedAssignment.id, assignmentUpdates);
-            setQuizQuestionsForAssignment(selectedAssignment.id, newQuestions);
+          onSave={async (assignmentUpdates, newQuestions) => {
+            try {
+              const { teacherApi } = await import('../../../api/services/teacherApi');
+              await teacherApi.updateAssignment(Number(selectedAssignment.id), {
+                title: selectedAssignment.title,
+                description: selectedAssignment.description,
+                dueAt: selectedAssignment.dueDate,
+                maxPoints: selectedAssignment.maxPoints,
+                type: selectedAssignment.type,
+                examFileUrl: assignmentUpdates.examFileUrl || selectedAssignment.examFileUrl,
+                examFileName: assignmentUpdates.examFileName || selectedAssignment.examFileName,
+                examFileType: assignmentUpdates.examFileType || selectedAssignment.examFileType,
+                questionCount: assignmentUpdates.questionCount || selectedAssignment.questionCount
+              });
+              await configureQuiz(newQuestions, (msg) => triggerToast(msg, 'success'));
+              setIsQuizManagerOpen(false);
+            } catch (err: any) {
+              triggerToast(err.message || 'Lỗi khi cấu hình bài trắc nghiệm', 'danger');
+            }
           }}
           onClose={() => setIsQuizManagerOpen(false)}
           triggerToast={triggerToast}
         />
+      )}
+
+      {/* Edit Assignment Modal */}
+      {isEditModalOpen && selectedAssignment && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="Chỉnh Sửa Bài Tập Lớp Học"
+          footer={
+            <>
+              <button
+                onClick={handleSaveEditAction}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                Lưu Thay Đổi
+              </button>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <FormInput
+              label="Tiêu đề bài tập"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Nhập tiêu đề cho bài tập..."
+            />
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Mô tả và Hướng dẫn</label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+                placeholder="Nhập hướng dẫn làm bài cho sinh viên..."
+                className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:outline bg-white text-slate-750"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormInput
+                label="Hạn nộp bài"
+                type="datetime-local"
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+              />
+
+              <FormInput
+                label="Thang điểm tối đa"
+                type="number"
+                value={editMaxPoints}
+                onChange={(e) => setEditMaxPoints(parseInt(e.target.value) || 10)}
+                min={1}
+                max={100}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                Thay đổi tệp đề bài đính kèm (.pdf, .zip, hình ảnh)
+              </label>
+              <div className="relative border border-dashed border-slate-300 bg-slate-50/50 rounded-xl p-6 text-center text-xs text-slate-500 hover:border-blue-500 transition-all cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,image/*,.docx,.zip"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      triggerToast('Đang tải tệp đề bài lên Cloudinary...', 'info');
+                      const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+                      const url = await teacherApi.uploadFile(file);
+                      setExamFileUrl(url as any);
+                      setExamFileName(file.name);
+                      setExamFileType(fileType);
+                      triggerToast('Đã cập nhật tệp đề bài đính kèm!', 'success');
+                    } catch (err: any) {
+                      triggerToast('Lỗi tải tệp: ' + (err.message || 'Lỗi hệ thống'), 'danger');
+                    }
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                />
+                <Upload className="h-5 w-5 text-slate-400 mx-auto mb-2" />
+                {examFileName ? (
+                  <p className="font-bold text-blue-700 truncate">{examFileName}</p>
+                ) : (
+                  <p className="text-slate-400">Kéo thả tệp đề bài mới hoặc bấm để duyệt tệp</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Visual Exam File Preview Modal */}
+      {isPreviewExamOpen && selectedAssignment && selectedAssignment.examFileUrl && (
+        <Modal
+          isOpen={isPreviewExamOpen}
+          onClose={() => setIsPreviewExamOpen(false)}
+          title={`Xem đề bài: ${selectedAssignment.title}`}
+          size="xl"
+        >
+          <DocumentPreviewer
+            material={{
+              id: selectedAssignment.id,
+              classId: selectedAssignment.classId || '0',
+              title: selectedAssignment.title,
+              type: selectedAssignment.examFileType || 'pdf',
+              fileName: selectedAssignment.examFileName || 'de_bai.pdf',
+              fileSize: 'Tệp đính kèm',
+              url: selectedAssignment.examFileUrl
+            }}
+            onClose={() => setIsPreviewExamOpen(false)}
+          />
+        </Modal>
       )}
     </div>
   );

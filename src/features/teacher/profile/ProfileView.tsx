@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useProfileViewModel } from './useProfileViewModel';
 import { Card, Modal, FormInput } from '../../../components/UI';
-import { Teacher } from '../../../types';
+import { Teacher } from '../../../models';
 import { User, Mail, Phone, Map, ShieldAlert, Key, Edit, Camera } from 'lucide-react';
 
 interface ProfileViewProps {
@@ -37,8 +37,8 @@ export function ProfileView({ teacherProfile, triggerToast }: ProfileViewProps) 
     handleUpdateAvatar
   } = useProfileViewModel(teacherProfile, triggerToast);
 
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState(profile.phone);
+  const [email, setEmail] = useState(profile.email || '');
+  const [phone, setPhone] = useState(profile.phone || '');
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
 

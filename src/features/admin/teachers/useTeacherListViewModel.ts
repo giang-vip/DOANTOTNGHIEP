@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Teacher, TeacherRequest } from '../../../models/admin/Teacher';
-import { Department } from '../../../models/admin/Department';
-import { UserAdmin } from '../../../models/admin/UserAdmin';
+import { Teacher, TeacherRequest } from '../../../models/Teacher';
+import { Department } from '../../../models/Department';
+import { UserAdmin } from '../../../models/UserAdmin';
 
 export function useTeacherListViewModel() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -157,14 +157,16 @@ export function useTeacherListViewModel() {
     setIsLoading(true);
     try {
       if (editingItem && editingItem.id) {
-        await adminApi.updateTeacher(editingItem.id, formData);
+        const updatedTeacher = await adminApi.updateTeacher(editingItem.id, formData);
+        setTeachers(prev => prev.map(t => t.id === editingItem.id ? updatedTeacher : t));
         onSuccess(`Đã cập nhật hồ sơ giảng viên ${formData.fullName} thành công!`);
       } else {
-        await adminApi.createTeacher(formData);
+        const newTeacher = await adminApi.createTeacher(formData);
+        setTeachers(prev => [newTeacher, ...prev]);
+        setTotalElements(prev => prev + 1);
         onSuccess(`Đã tạo hồ sơ giảng viên ${formData.fullName} thành công!`);
       }
       setIsModalOpen(false);
-      fetchTeachers();
     } catch (err: any) {
       alert(err.message || 'Có lỗi xảy ra khi lưu hồ sơ giảng viên');
     } finally {
@@ -177,8 +179,9 @@ export function useTeacherListViewModel() {
       setIsLoading(true);
       try {
         await adminApi.deleteTeacher(id);
+        setTeachers(prev => prev.filter(t => t.id !== id));
+        setTotalElements(prev => prev - 1);
         onSuccess(`Đã xóa hồ sơ giảng viên ${name} thành công!`);
-        fetchTeachers();
       } catch (err: any) {
         alert(err.message || 'Lỗi khi xóa hồ sơ');
       } finally {

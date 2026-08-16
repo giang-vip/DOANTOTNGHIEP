@@ -1,20 +1,35 @@
 import axiosClient from '../axiosClient';
-import { Department, DepartmentRequest } from '../../models/admin/Department';
-import { AcademicYear, AcademicYearRequest } from '../../models/admin/AcademicYear';
-import { Semester, SemesterRequest } from '../../models/admin/Semester';
-import { Subject, SubjectRequest } from '../../models/admin/Subject';
-import { ClassSection, ClassSectionRequest } from '../../models/admin/ClassSection';
-import { SchoolClass } from '../../models/admin/SchoolClass';
-import { Teacher, TeacherRequest } from '../../models/admin/Teacher';
-import { Major, MajorRequest } from '../../models/admin/Major';
-import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../models/admin/UserAdmin';
-import { Student, StudentRequest } from '../../models/admin/Student';
-import { Enrollment, EnrollmentRequest } from '../../models/admin/Enrollment';
-import { RegistrationPeriod, RegistrationPeriodRequest } from '../../models/admin/RegistrationPeriod';
-import { AdminDashboardStats } from '../../models/admin/AdminDashboard';
+import { Department, DepartmentRequest } from '../../models/Department';
+import { AcademicYear, AcademicYearRequest } from '../../models/AcademicYear';
+import { Semester, SemesterRequest } from '../../models/Semester';
+import { Subject, SubjectRequest } from '../../models/Subject';
+import { ClassSection, ClassSectionRequest } from '../../models/ClassSection';
+import { SchoolClass } from '../../models/SchoolClass';
+import { Teacher, TeacherRequest } from '../../models/Teacher';
+import { Major, MajorRequest } from '../../models/Major';
+import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../models/UserAdmin';
+import { Student, StudentRequest } from '../../models/Student';
+import { Enrollment, EnrollmentRequest } from '../../models/Enrollment';
+import { RegistrationPeriod, RegistrationPeriodRequest } from '../../models/RegistrationPeriod';
+import { AdminDashboardStats } from '../../models/AdminDashboard';
 import { PageResponse } from '../../models/PageResponse';
+import { AdminAnnouncementResponse, AdminAnnouncementRequest } from '../../models/Announcement';
 
 export const adminApi = {
+  // === ANNOUNCEMENT API ===
+  getAllAnnouncements: async (): Promise<AdminAnnouncementResponse[]> => {
+    return await axiosClient.get('/admin/announcements');
+  },
+  createAnnouncement: async (data: AdminAnnouncementRequest): Promise<AdminAnnouncementResponse> => {
+    return await axiosClient.post('/admin/announcements', data);
+  },
+  updateAnnouncement: async (id: number, data: AdminAnnouncementRequest): Promise<AdminAnnouncementResponse> => {
+    return await axiosClient.put(`/admin/announcements/${id}`, data);
+  },
+  deleteAnnouncement: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/announcements/${id}`);
+  },
+
   // === DASHBOARD API ===
   getDashboardStats: async (): Promise<AdminDashboardStats> => {
     return await axiosClient.get('/admin/dashboard/stats');
@@ -241,5 +256,8 @@ export const adminApi = {
   },
   toggleRegistrationPeriod: async (id: number, isOpen: boolean): Promise<void> => {
     await axiosClient.patch(`/admin/config/registration-period/${id}/toggle?isOpen=${isOpen}`);
+  },
+  deleteRegistrationPeriod: async (id: number): Promise<void> => {
+    await axiosClient.delete(`/admin/config/registration-period/${id}`);
   },
 };

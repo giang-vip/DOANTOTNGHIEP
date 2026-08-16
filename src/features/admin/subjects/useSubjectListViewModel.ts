@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Subject, SubjectRequest } from '../../../models/admin/Subject';
-import { Department } from '../../../models/admin/Department';
+import { Subject, SubjectRequest } from '../../../models/Subject';
+import { Department } from '../../../models/Department';
 
 export function useSubjectListViewModel() {
   const [subjects, setSubjects] = useState<Subject[]>([]);

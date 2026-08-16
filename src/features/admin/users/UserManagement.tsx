@@ -1,8 +1,8 @@
 import React from 'react';
 import { useUserListViewModel } from './useUserListViewModel';
 import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../../models/admin/UserAdmin';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, RefreshCcw } from 'lucide-react';
+import { UserAdmin, UserCreationRequest, UserUpdateRequest } from '../../../models/UserAdmin';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface UserManagementProps {
@@ -35,7 +35,8 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
     handleInputChange,
     handleRoleChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleResetPassword
   } = useUserListViewModel();
 
   const handleSaveAction = () => {
@@ -82,8 +83,17 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
       accessor: (item: UserAdmin) => (
         <div className="flex gap-2">
           <button
+            onClick={() => handleResetPassword(item, (msg) => triggerToast(msg, 'success'))}
+            disabled={isLoading}
+            title="Khôi phục mật khẩu mặc định (123456)"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors disabled:opacity-50"
+          >
+            <RefreshCcw className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
+            title="Cập nhật thông tin"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
           >
             <Edit2 className="h-4 w-4" />
@@ -91,6 +101,7 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
           <button
             onClick={() => handleDelete(item.id!, item.username, (msg) => triggerToast(msg, 'success'))}
             disabled={isLoading}
+            title="Xóa tài khoản"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
@@ -138,7 +149,6 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={isLoading}
               placeholder="Tìm theo tên tài khoản hoặc họ tên..."
               className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
             />
@@ -150,9 +160,9 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
               value={roleName}
               onChange={(val) => setRoleName(val ? String(val) : undefined)}
               options={[
-                { value: 'ROLE_ADMIN', label: 'Quản trị viên' },
-                { value: 'ROLE_TEACHER', label: 'Giảng viên' },
-                { value: 'ROLE_STUDENT', label: 'Sinh viên' }
+                { value: 'ADMIN', label: 'Quản trị viên' },
+                { value: 'TEACHER', label: 'Giảng viên' },
+                { value: 'STUDENT', label: 'Sinh viên' }
               ]}
               placeholder="-- Tất cả quyền --"
               allowClear

@@ -27,8 +27,8 @@ export function AttendanceView({ teacherId, triggerToast }: AttendanceViewProps)
     createSession,
     reopenSession,
     updateRecordStatus,
-    forceCloseSession,
-    updateAttendanceRecords
+    saveBulkAttendance,
+    forceCloseSession
   } = useAttendanceViewModel(teacherId);
 
   const [activeSubTab, setActiveSubTab] = useState<'rollcall' | 'stats'>('rollcall');
@@ -144,14 +144,14 @@ export function AttendanceView({ teacherId, triggerToast }: AttendanceViewProps)
             <select
               value={selectedClass?.id || ''}
               onChange={(e) => {
-                const found = myClasses.find(c => c.id === e.target.value);
+                const found = myClasses.find(c => String(c.id) === e.target.value);
                 if (found) setSelectedClass(found);
               }}
               className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
             >
               {myClasses.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.id} - {cls.subjectName}
+                  {cls.sectionCode || `LHP-${cls.id}`} - {cls.subjectName}
                 </option>
               ))}
             </select>
@@ -406,20 +406,22 @@ export function AttendanceView({ teacherId, triggerToast }: AttendanceViewProps)
                     <div className="pt-3 border-t border-slate-100 flex justify-end">
                       <button
                         onClick={() => {
-                          const payload = classStudents.map(stud => ({
-                            sessionId: selectedSession.id,
-                            classId: selectedSession.classId,
-                            studentId: stud.id,
-                            studentName: stud.name,
-                            status: localAttendance[stud.id] || 'absent',
-                            noted: ''
-                          }));
-                          updateAttendanceRecords(payload);
-                          triggerToast('Lưu điểm danh thành công', 'success');
+                          if (Object.keys(localAttendance).length === 0) {
+                            triggerToast('Không có thay đổi nào để lưu!', 'danger');
+                            return;
+                          }
+                          saveBulkAttendance(
+                            localAttendance,
+                            () => {
+                              triggerToast('Bảng điểm danh lớp học đã được cập nhật thành công!', 'success');
+                              setLocalAttendance({});
+                            },
+                            () => triggerToast('Lỗi khi lưu điểm danh!', 'danger')
+                          );
                         }}
                         className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
                       >
-                        Lưu điểm danh
+                        Lưu điểm danh {Object.keys(localAttendance).length > 0 && `(${Object.keys(localAttendance).length})`}
                       </button>
                     </div>
                   </Card>

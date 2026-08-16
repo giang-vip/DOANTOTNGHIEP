@@ -1,38 +1,94 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '../../../models/store';
-import { ClassSection, Student, SystemNotification } from '../../../types';
+import { teacherApi } from '../../../api/services/teacherApi';
 
+/**
+ * ViewModel cho trang "Lớp của tôi" (Teacher My Classes).
+ * Lấy dữ liệu từ Backend API thay vì mock store.
+ */
 export function useMyClassesViewModel(teacherId: string) {
-  const { classes, students, notifications, addNotification, deleteNotification } = useStore();
-
-  // Filter classes assigned to this teacher
-  const myClasses = classes.filter(c => c.teacherId === teacherId);
-
-  const [selectedClass, setSelectedClass] = useState<ClassSection | null>(null);
+  const [myClasses, setMyClasses] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
+  
+  const [classStudents, setClassStudents] = useState<any[]>([]);
+  const [classAnnouncements, setClassAnnouncements] = useState<any[]>([]);
+  
   const [annTitle, setAnnTitle] = useState('');
   const [annContent, setAnnContent] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
 
-  // Reset selected class on change if previous selected is no longer in myClasses
-  useEffect(() => {
-    if (myClasses.length > 0 && !selectedClass) {
-      setSelectedClass(myClasses[0]);
+  /**
+   * Lấy ID số nguyên từ đối tượng class.
+   * Backend trả về id dạng number (1, 2, 3...) nên dùng trực tiếp.
+   */
+  const getClassId = (cls: any): number => {
+    return Number(cls.id);
+  };
+
+  // 1. Fetch danh sách lớp được phân công
+  const fetchMyClasses = async () => {
+    try {
+      setIsLoadingClasses(true);
+      const res: any = await teacherApi.getMyClasses();
+      const items = res.content || res || [];
+      setMyClasses(items);
+      if (items.length > 0 && !selectedClass) {
+        setSelectedClass(items[0]);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải danh sách lớp:', error);
+    } finally {
+      setIsLoadingClasses(false);
     }
-  }, [classes]);
+  };
 
-  // Get student roster for selected class
-  const classStudents = selectedClass
-    ? students.filter(s => selectedClass.studentIds.includes(s.id) && s.status === 'active')
-    : [];
+  useEffect(() => {
+    fetchMyClasses();
+  }, [teacherId]);
 
-  // Filter notifications for selected class or target group
-  const classAnnouncements = selectedClass
-    ? notifications.filter(
-        n => (n.classId === selectedClass.id && n.recipientGroup === 'class') || n.recipientGroup === 'all'
-      )
-    : [];
+  // 2. Fetch danh sách SV và Thông báo khi chọn lớp khác
+  useEffect(() => {
+    if (!selectedClass) return;
+    const classId = getClassId(selectedClass);
 
-  const handlePostAnnouncement = (onSuccess: (msg: string) => void) => {
+    // Fetch sinh viên
+    const fetchStudents = async () => {
+      try {
+        setIsLoadingStudents(true);
+        const res: any = await teacherApi.getClassStudents(classId);
+        setClassStudents(res.content || res || []);
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách sinh viên:', err);
+        setClassStudents([]);
+      } finally {
+        setIsLoadingStudents(false);
+      }
+    };
+
+    // Fetch thông báo
+    const fetchAnnouncements = async () => {
+      try {
+        setIsLoadingAnnouncements(true);
+        const res: any = await teacherApi.getClassAnnouncements(classId);
+        setClassAnnouncements(res.content || res || []);
+      } catch (err) {
+        console.error('Lỗi khi tải thông báo lớp:', err);
+        setClassAnnouncements([]);
+      } finally {
+        setIsLoadingAnnouncements(false);
+      }
+    };
+
+    fetchStudents();
+    fetchAnnouncements();
+  }, [selectedClass]);
+
+  // 3. Đăng thông báo mới cho lớp
+  const handlePostAnnouncement = async (onSuccess: (msg: string) => void, onError: (msg: string) => void) => {
     if (!selectedClass) return;
 
     const tempErrors: Record<string, string> = {};
@@ -44,25 +100,45 @@ export function useMyClassesViewModel(teacherId: string) {
       return;
     }
 
-    // Add notification targeting this specific class
-    addNotification({
-      title: annTitle.trim(),
-      content: annContent.trim(),
-      recipientGroup: 'class',
-      classId: selectedClass.id,
-      sender: selectedClass.teacherName
-    });
+    try {
+      setIsPosting(true);
+      const classId = getClassId(selectedClass);
+      await teacherApi.createAnnouncement(classId, {
+        title: annTitle.trim(),
+        content: annContent.trim(),
+        recipientGroup: 'class'
+      });
 
-    setAnnTitle('');
-    setAnnContent('');
-    setErrors({});
-    onSuccess('Đã đăng thông báo cho lớp học phần thành công!');
+      // Tải lại danh sách thông báo sau khi đăng thành công
+      const annRes: any = await teacherApi.getClassAnnouncements(classId);
+      setClassAnnouncements(annRes.content || annRes || []);
+
+      setAnnTitle('');
+      setAnnContent('');
+      setErrors({});
+      onSuccess('Đã đăng thông báo cho lớp học phần thành công!');
+    } catch (error: any) {
+      onError(error.message || 'Lỗi khi đăng thông báo');
+    } finally {
+      setIsPosting(false);
+    }
   };
 
-  const handleDeleteAnnouncement = (id: string, onSuccess: (msg: string) => void) => {
-    if (confirm('Bạn có chắc chắn muốn xóa thông báo lớp này?')) {
-      deleteNotification(id);
+  // 4. Xóa thông báo
+  const handleDeleteAnnouncement = async (id: string | number, onSuccess: (msg: string) => void, onError: (msg: string) => void) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa thông báo lớp này?')) return;
+    if (!selectedClass) return;
+
+    try {
+      const classId = getClassId(selectedClass);
+      await teacherApi.deleteAnnouncement(classId, Number(id));
+      
+      // Tải lại danh sách thông báo sau khi xóa
+      const annRes: any = await teacherApi.getClassAnnouncements(classId);
+      setClassAnnouncements(annRes.content || annRes || []);
       onSuccess('Đã xóa thông báo thành công!');
+    } catch (error: any) {
+      onError(error.message || 'Lỗi khi xóa thông báo');
     }
   };
 
@@ -78,6 +154,10 @@ export function useMyClassesViewModel(teacherId: string) {
     setAnnContent,
     errors,
     postAnnouncement: handlePostAnnouncement,
-    deleteAnnouncement: handleDeleteAnnouncement
+    deleteAnnouncement: handleDeleteAnnouncement,
+    isLoadingClasses,
+    isLoadingStudents,
+    isLoadingAnnouncements,
+    isPosting
   };
 }

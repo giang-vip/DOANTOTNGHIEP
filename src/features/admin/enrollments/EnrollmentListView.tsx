@@ -2,7 +2,7 @@ import React from 'react';
 import { useEnrollmentListViewModel } from './useEnrollmentListViewModel';
 import { Card, Table, Modal, FormInput, Badge } from '../../../components/UI';
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
-import { Enrollment } from '../../../models/admin/Enrollment';
+import { Enrollment } from '../../../models/Enrollment';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface EnrollmentListViewProps {
@@ -130,8 +130,7 @@ export function EnrollmentListView({ triggerToast }: EnrollmentListViewProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={isLoading}
-            placeholder="Tìm mã SV, tên SV, mã LHP..."
+            placeholder="Tìm theo mã sinh viên, họ tên..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
         </div>

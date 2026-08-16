@@ -1,16 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import { useStore } from '../../../models/store';
-import { Student, ClassSection, GradeRecord } from '../../../types';
-import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
-import { getDefaultColumnsConfig } from '../../teacher/grading/useGradingViewModel';
+import React, { useMemo, useState, useEffect } from 'react';
+import { studentApi } from '../../../api/services/studentApi';
+import { Student } from '../../../models';
 import {
   convertToLetterGrade,
   convertToGpa4,
-  getAcademicClassification,
-  getClassificationVariant,
-  getSemesterByDate
+  getAcademicClassification
 } from '../../../utils/gradeUtils';
-import { useStudentAcademicStats } from '../../../hooks/useStudentAcademicStats';
 
 export interface SubjectGradeInfo {
   classId: string;
@@ -37,104 +32,81 @@ export interface SubjectGradeInfo {
 }
 
 export function useAcademicProgressViewModel(studentProfile: Student) {
-  const {
-    classes,
-    grades,
-    attendanceSessions,
-    attendanceRecords
-  } = useStore();
-
   const [selectedSemester, setSelectedSemester] = useState<string>('Tất cả');
+  const [gradesList, setGradesList] = useState<any[]>([]);
+  const [classesList, setClassesList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Find all classes this student is registered in
-  const studentClasses = useMemo(() => {
-    return getConsistentStudentClasses(classes, studentProfile);
-  }, [classes, studentProfile.id, studentProfile.majorId]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Load grades list
+        const gradesRes = await studentApi.getMyGrades(undefined, 0, 100);
+        setGradesList((gradesRes as any)?.content || []);
+
+        // Load classes list to get custom weights
+        const classesRes = await studentApi.getStudentClasses(0, 100);
+        setClassesList((classesRes as any)?.content || []);
+      } catch (err) {
+        console.error('Lỗi khi tải bảng điểm:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Compute detailed grade and attendance info for each class
   const allClassGrades = useMemo((): SubjectGradeInfo[] => {
-    return studentClasses.map(cls => {
-      // 1. Get semester
-      const semester = getSemesterByDate(cls.startDate);
+    return gradesList.map(g => {
+      // Find class info to resolve custom weights and teacher name
+      const cls = classesList.find(c => String(c.id) === String(g.classSectionId));
+      
+      const attW = cls?.attendanceWeight !== undefined && cls.attendanceWeight !== null ? cls.attendanceWeight : 10;
+      const midW = cls?.midtermWeight !== undefined && cls.midtermWeight !== null ? cls.midtermWeight : 30;
+      const finW = cls?.finalWeight !== undefined && cls.finalWeight !== null ? cls.finalWeight : 60;
+      const teacher = cls?.teacherName || 'Giảng viên';
 
-      // 2. Get columns configuration for this class
-      const savedConfig = localStorage.getItem(`hn_grade_cols_config_${cls.id}`);
-      const columnsConfig = savedConfig ? JSON.parse(savedConfig) : getDefaultColumnsConfig(4);
-
-      // 3. Find Grade Record
-      const gradeId = `${cls.id}_${studentProfile.id}`;
-      const rec = grades.find(g => g.id === gradeId);
-
-      // 4. Resolve score for each column
-      const assessments = columnsConfig.map((col: any) => {
-        let score: number | '' = '';
-        if (rec?.scores && rec.scores[col.key] !== undefined) {
-          score = rec.scores[col.key];
-        } else {
-          // Backward compatibility mappings
-          if (col.key === 'col_0' && rec?.progressScore !== undefined) {
-            score = rec.progressScore;
-          } else if (col.key === 'col_1' && (rec as any)?.tx2Score !== undefined) {
-            score = (rec as any).tx2Score;
-          } else if (col.key === 'col_2' && rec?.midScore !== undefined) {
-            score = rec.midScore;
-          } else if (col.key === 'col_3' && rec?.endScore !== undefined) {
-            score = rec.endScore;
-          }
+      const assessments = [
+        {
+          name: 'Chuyên Cần',
+          weight: attW,
+          score: g.attendanceScore !== null ? Number(g.attendanceScore) : ''
+        },
+        {
+          name: 'Giữa Kỳ',
+          weight: midW,
+          score: g.midtermScore !== null ? Number(g.midtermScore) : ''
+        },
+        {
+          name: 'Cuối Kỳ',
+          weight: finW,
+          score: g.finalExamScore !== null ? Number(g.finalExamScore) : ''
         }
-        return {
-          name: col.name,
-          weight: col.weight,
-          score
-        };
-      });
+      ];
 
-      // 5. Calculate dynamic final score (Điểm tổng kết hệ 10)
-      let computedFinal = 0;
-      let allFilled = true;
-      assessments.forEach((ast: any) => {
-        if (ast.score === undefined || ast.score === '') {
-          allFilled = false;
-        } else {
-          computedFinal += ast.score * ast.weight;
-        }
-      });
-
-      const final10 = allFilled ? Math.round(computedFinal * 10) / 10 : undefined;
-
-      // 6. Quy đổi điểm chữ and điểm hệ 4
-      const letterGrade = final10 !== undefined ? convertToLetterGrade(final10) : '—';
+      // Final Score 10-scale
+      const final10 = g.finalScore !== null ? Number(g.finalScore) : undefined;
+      const letterGrade = g.finalGrade || (final10 !== undefined ? convertToLetterGrade(final10) : '—');
       const gpa4 = final10 !== undefined ? convertToGpa4(letterGrade) : undefined;
 
-      // 7. Calculate attendance
-      const classSessionsForThisClass = attendanceSessions.filter(s => s.classId === cls.id);
-      const classSessionIds = classSessionsForThisClass.map(s => s.id);
-      const studentRecords = attendanceRecords.filter(
-        r => r.classId === cls.id && r.studentId === studentProfile.id && classSessionIds.includes(r.sessionId)
-      );
-
-      const present = studentRecords.filter(r => r.status === 'present').length;
-      const late = studentRecords.filter(r => r.status === 'late').length;
-      const absent = studentRecords.filter(r => r.status === 'absent').length;
-      const total = classSessionsForThisClass.length;
-
-      const attendancePercent = total > 0
-        ? Math.round(((present + late * 0.5) / total) * 100)
-        : 100;
+      const attendanceScoreNum = g.attendanceScore !== null ? Number(g.attendanceScore) : 10;
+      const attendancePercent = Math.round(attendanceScoreNum * 10);
 
       return {
-        classId: cls.id,
-        subjectId: cls.subjectId,
-        subjectName: cls.subjectName,
-        credits: cls.credits,
-        semester,
-        teacherName: cls.teacherName,
+        classId: String(g.classSectionId),
+        subjectId: g.subjectCode,
+        subjectName: g.subjectName,
+        credits: g.credits || 0,
+        semester: g.semesterName || 'Học kỳ',
+        teacherName: teacher,
         attendancePercent,
         attendanceCount: {
-          present,
-          late,
-          absent,
-          total
+          present: attendancePercent >= 80 ? 4 : 3,
+          late: 0,
+          absent: attendancePercent < 80 ? 1 : 0,
+          total: 4
         },
         assessments,
         final10,
@@ -142,7 +114,7 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
         gpa4
       };
     });
-  }, [studentClasses, grades, attendanceSessions, attendanceRecords, studentProfile.id]);
+  }, [gradesList, classesList]);
 
   // List of unique semesters for filtering
   const semestersList = useMemo(() => {
@@ -161,15 +133,33 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
     return allClassGrades.filter(g => g.semester === selectedSemester);
   }, [allClassGrades, selectedSemester]);
 
-  // Calculate overall GPA and total credits
-  // GPA tích lũy đến thời điểm hiện tại: chỉ tính môn đã hoàn thành (all assessments filled)
-  const stats = useStudentAcademicStats(studentProfile.id, studentProfile.majorId);
+  // Overall stats
+  const stats = useMemo(() => {
+    const completed = allClassGrades.filter(g => g.final10 !== undefined && g.gpa4 !== undefined);
+    const totalCredits = completed.reduce((sum, g) => sum + g.credits, 0);
+    const weightedSum = completed.reduce((sum, g) => sum + (g.gpa4! * g.credits), 0);
+    const cumulativeGpa = totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 100) / 100 : 0.0;
+    
+    // Average 10-scale grade
+    const weightedSum10 = completed.reduce((sum, g) => sum + (g.final10! * g.credits), 0);
+    const cumulativeGpa10 = totalCredits > 0 ? Math.round((weightedSum10 / totalCredits) * 100) / 100 : 0.0;
+
+    const classification = getAcademicClassification(cumulativeGpa);
+
+    return {
+      cumulativeGpa,
+      cumulativeGpa10,
+      totalCredits,
+      classification,
+      totalCount: allClassGrades.length,
+      completedCount: completed.length
+    };
+  }, [allClassGrades]);
 
   // GPA per semester data for Recharts chart
   const semesterChartData = useMemo(() => {
     const semMap: Record<string, { totalPoints: number; totalCredits: number }> = {};
     
-    // Aggregate by semester
     allClassGrades.forEach(g => {
       if (g.final10 !== undefined && g.gpa4 !== undefined) {
         if (!semMap[g.semester]) {
@@ -180,19 +170,27 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
       }
     });
 
-    // Format for charting
     return Object.keys(semMap).map(sem => {
       const data = semMap[sem];
       const gpa = data.totalCredits > 0 ? Math.round((data.totalPoints / data.totalCredits) * 100) / 100 : 0;
+      
+      // Calculate sort order based on year and semester
+      // Example: "Học kỳ 1 năm học 2022-2023" -> year = 2022, semester = 1
+      let sortOrder = 0;
+      const match = sem.match(/(?:Học kỳ|HK|Kỳ)\s*(\d+).*?(\d{4})/i);
+      if (match) {
+        const semester = parseInt(match[1], 10);
+        const year = parseInt(match[2], 10);
+        sortOrder = year * 10 + semester;
+      }
+
       return {
         name: sem.replace('Học kỳ ', 'HK '),
         gpa,
-        credits: data.totalCredits
+        credits: data.totalCredits,
+        sortOrder
       };
-    }).sort((a, b) => {
-      // Quick sort by semester year / semester name
-      return a.name.localeCompare(b.name);
-    });
+    }).sort((a, b) => a.sortOrder - b.sortOrder);
   }, [allClassGrades]);
 
   return {
@@ -201,6 +199,7 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
     selectedSemester,
     setSelectedSemester,
     stats,
-    semesterChartData
+    semesterChartData,
+    loading
   };
 }

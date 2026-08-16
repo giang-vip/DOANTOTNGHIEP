@@ -1,165 +1,119 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '../../../models/store';
-import { ClassSection, GradeRecord, Student } from '../../../types';
+import { teacherApi } from '../../../api/services/teacherApi';
 
+/**
+ * Trả về cấu hình mặc định tương ứng với 3 cột điểm trong DB.
+ */
 export function getDefaultColumnsConfig(n: number) {
-  if (n === 3) {
-    return [
-      { key: 'col_0', name: 'TX1', weight: 0.3 },
-      { key: 'col_1', name: 'TX2', weight: 0.3 },
-      { key: 'col_2', name: 'Cuối Kỳ', weight: 0.4 }
-    ];
-  } else if (n === 4) {
-    return [
-      { key: 'col_0', name: 'TX1', weight: 0.1 },
-      { key: 'col_1', name: 'TX2', weight: 0.2 },
-      { key: 'col_2', name: 'Giữa Kỳ', weight: 0.3 },
-      { key: 'col_3', name: 'Cuối Kỳ', weight: 0.4 }
-    ];
-  } else if (n === 5) {
-    return [
-      { key: 'col_0', name: 'TX1', weight: 0.15 },
-      { key: 'col_1', name: 'TX2', weight: 0.15 },
-      { key: 'col_2', name: 'Giữa Kỳ', weight: 0.2 },
-      { key: 'col_3', name: 'TX3', weight: 0.15 },
-      { key: 'col_4', name: 'Cuối Kỳ', weight: 0.35 }
-    ];
-  } else {
-    // General N-column formula
-    const config = [];
-    const lastWeight = 0.4;
-    const remainingWeight = 0.6;
-    const itemWeightRaw = remainingWeight / (n - 1);
-    const itemWeight = Math.round(itemWeightRaw * 100) / 100;
-    
-    let sumWeights = 0;
-    for (let i = 0; i < n - 1; i++) {
-      const isLastPre = i === n - 2;
-      const w = isLastPre ? Math.round((remainingWeight - sumWeights) * 100) / 100 : itemWeight;
-      sumWeights += w;
-      config.push({
-        key: `col_${i}`,
-        name: `TX${i + 1}`,
-        weight: w
-      });
-    }
-    config.push({
-      key: `col_${n - 1}`,
-      name: 'Cuối Kỳ',
-      weight: lastWeight
-    });
-    return config;
-  }
+  return [
+    { key: 'attendanceScore', name: 'Chuyên Cần', weight: 0.10 },
+    { key: 'midtermScore', name: 'Giữa Kỳ', weight: 0.30 },
+    { key: 'finalExamScore', name: 'Cuối Kỳ', weight: 0.60 }
+  ];
 }
 
+/**
+ * ViewModel cho Nhập & Xuất Điểm (Teacher Grading) của Giảng viên.
+ * Đồng bộ toàn bộ cấu hình trọng số và điểm số (Chuyên cần, Giữa kỳ, Cuối kỳ) của lớp học phần.
+ */
 export function useGradingViewModel(teacherId: string) {
-  const {
-    classes,
-    students,
-    grades,
-    attendanceSessions,
-    attendanceRecords,
-    updateGrades
-  } = useStore();
-
-  const myClasses = classes.filter(c => c.teacherId === teacherId);
-
-  const [selectedClass, setSelectedClass] = useState<ClassSection | null>(null);
+  const [myClasses, setMyClasses] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
   
-  // Columns configurations
+  // Trọng số điểm: Chuyên cần, Giữa kỳ, Cuối kỳ
   const [columnsConfig, setColumnsConfig] = useState<Array<{ key: string; name: string; weight: number }>>([]);
   const [isConfiguring, setIsConfiguring] = useState(false);
-  const [numAssessments, setNumAssessments] = useState(4);
+  const [numAssessments, setNumAssessments] = useState(3);
   const [tempConfig, setTempConfig] = useState<Array<{ key: string; name: string; weight: number }>>([]);
 
-  // Local unsaved grades state: { [studentId]: { [colKey]: number | '' } }
+  // Bảng điểm local: { [studentId]: { [colKey]: score } }
   const [localGrades, setLocalGrades] = useState<Record<string, Record<string, number | ''>>>({});
+  
+  // Dữ liệu thô từ API Final Grades
+  const [rawGrades, setRawGrades] = useState<any[]>([]);
 
-  // Set default class
-  useEffect(() => {
-    if (myClasses.length > 0 && !selectedClass) {
-      setSelectedClass(myClasses[0]);
-    }
-  }, [classes]);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [isLoadingGrades, setIsLoadingGrades] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Load columns configuration and students grades when selected class changes
-  useEffect(() => {
-    if (!selectedClass) return;
-
-    // Load columns config
-    const savedConfig = localStorage.getItem(`hn_grade_cols_config_${selectedClass.id}`);
-    let activeCols = savedConfig ? JSON.parse(savedConfig) : getDefaultColumnsConfig(4);
-    setColumnsConfig(activeCols);
-    setNumAssessments(activeCols.length);
-
-    // Filter students
-    const classStudents = students.filter(s => selectedClass.studentIds.includes(s.id) && s.status === 'active');
-    
-    // Build initial local grades from global state
-    const initialLocal: Record<string, Record<string, number | ''>> = {};
-    classStudents.forEach(student => {
-      const gradeId = `${selectedClass.id}_${student.id}`;
-      const rec = grades.find(g => g.id === gradeId);
-      
-      const recordScores: Record<string, number | ''> = {};
-      
-      activeCols.forEach((col: any) => {
-        // Read from scores dictionary
-        if (rec?.scores && rec.scores[col.key] !== undefined) {
-          recordScores[col.key] = rec.scores[col.key];
-        } else {
-          // Backward compatibility map
-          if (col.key === 'col_0' && rec?.progressScore !== undefined) {
-            recordScores[col.key] = rec.progressScore;
-          } else if (col.key === 'col_1' && (rec as any)?.tx2Score !== undefined) {
-            recordScores[col.key] = (rec as any).tx2Score;
-          } else if (col.key === 'col_2' && rec?.midScore !== undefined) {
-            recordScores[col.key] = rec.midScore;
-          } else if (col.key === 'col_3' && rec?.endScore !== undefined) {
-            recordScores[col.key] = rec.endScore;
-          } else {
-            recordScores[col.key] = '';
-          }
-        }
-      });
-      
-      initialLocal[student.id] = recordScores;
-    });
-    
-    setLocalGrades(initialLocal);
-  }, [selectedClass, grades, students]);
-
-  const classStudents = selectedClass
-    ? students.filter(s => selectedClass.studentIds.includes(s.id) && s.status === 'active')
-    : [];
-
-  const classSessions = selectedClass
-    ? attendanceSessions.filter(s => s.classId === selectedClass.id)
-    : [];
-
-  // Calculate student attendance score (0-10)
-  const getAttendanceBonus = (studentId: string): number => {
-    const classSessionIds = classSessions.map(s => s.id);
-    const records = attendanceRecords.filter(
-      r => r.classId === selectedClass?.id && r.studentId === studentId && classSessionIds.includes(r.sessionId)
-    );
-    
-    if (records.length === 0) return 10; // Default max score
-    
-    const present = records.filter(r => r.status === 'present').length;
-    const late = records.filter(r => r.status === 'late').length;
-    
-    // Present is 1.0, late is 0.5, absent is 0
-    const score = ((present + late * 0.5) / records.length) * 10;
-    return Math.round(score * 10) / 10;
+  const getClassId = (cls: any): number => {
+    return Number(cls.id);
   };
 
-  // Build rows for rendering in table
-  const gradeRows = classStudents.map(student => {
-    const studentInputs = localGrades[student.id] || {};
-    const attScore = getAttendanceBonus(student.id);
+  // 1. Fetch danh sách lớp của GV
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setIsLoadingClasses(true);
+        const res: any = await teacherApi.getMyClasses();
+        const items = res.content || res || [];
+        setMyClasses(items);
+        if (items.length > 0 && !selectedClass) {
+          setSelectedClass(items[0]);
+        }
+      } catch (err) {
+        console.error('Lỗi lấy lớp học:', err);
+      } finally {
+        setIsLoadingClasses(false);
+      }
+    };
+    fetchClasses();
+  }, [teacherId]);
 
-    // Calculate dynamic final
+  // 2. Load cấu hình cột (trọng số) và điểm số từ BE khi đổi lớp
+  const fetchGradesData = async () => {
+    if (!selectedClass) return;
+    const classId = getClassId(selectedClass);
+
+    // Cấu hình trọng số từ selectedClass (BE trả về)
+    const attW = selectedClass.attendanceWeight !== null ? selectedClass.attendanceWeight : 10;
+    const midW = selectedClass.midtermWeight !== null ? selectedClass.midtermWeight : 30;
+    const finW = selectedClass.finalWeight !== null ? selectedClass.finalWeight : 60;
+
+    // Load custom names from localStorage if they exist
+    const storedNamesJson = localStorage.getItem(`grading_names_${classId}`);
+    const customNames = storedNamesJson ? JSON.parse(storedNamesJson) : null;
+
+    const activeCols = [
+      { key: 'attendanceScore', name: customNames?.attendanceScore || 'Chuyên Cần', weight: attW / 100 },
+      { key: 'midtermScore', name: customNames?.midtermScore || 'Giữa Kỳ', weight: midW / 100 },
+      { key: 'finalExamScore', name: customNames?.finalExamScore || 'Cuối Kỳ', weight: finW / 100 }
+    ];
+    
+    setColumnsConfig(activeCols);
+    setNumAssessments(3);
+
+    try {
+      setIsLoadingGrades(true);
+      const res: any = await teacherApi.getFinalGrades(classId);
+      const items = res.content || res || [];
+      setRawGrades(items);
+
+      // Build bảng điểm cục bộ để chỉnh sửa
+      const initialLocal: Record<string, Record<string, number | ''>> = {};
+      items.forEach((g: any) => {
+        initialLocal[String(g.studentCode)] = {
+          attendanceScore: (g.attendanceScore !== null && g.attendanceScore !== undefined) ? Number(g.attendanceScore) : '',
+          midtermScore: (g.midtermScore !== null && g.midtermScore !== undefined) ? Number(g.midtermScore) : '',
+          finalExamScore: (g.finalExamScore !== null && g.finalExamScore !== undefined) ? Number(g.finalExamScore) : ''
+        };
+      });
+      setLocalGrades(initialLocal);
+    } catch (err) {
+      console.error('Lỗi lấy bảng điểm:', err);
+    } finally {
+      setIsLoadingGrades(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGradesData();
+  }, [selectedClass]);
+
+  // Hàng dữ liệu phục vụ render bảng
+  const gradeRows = rawGrades.map((g: any) => {
+    const studentInputs = localGrades[String(g.studentCode)] || {};
+    
     let computedFinal: number | undefined = 0;
     let allFilled = true;
 
@@ -173,83 +127,103 @@ export function useGradingViewModel(teacherId: string) {
     });
 
     return {
-      studentId: student.id,
-      studentName: student.name,
-      attendance: attScore,
+      enrollmentId: g.enrollmentId,
+      studentId: g.studentCode,
+      studentName: g.studentName,
+      attendance: studentInputs.attendanceScore !== '' ? Number(studentInputs.attendanceScore) : 10,
       inputs: studentInputs,
-      final: allFilled ? Math.round(computedFinal! * 10) / 10 : undefined
+      final: allFilled ? Math.round(computedFinal! * 10) / 10 : (g.finalScore !== null ? Number(g.finalScore) : undefined),
+      letterGrade: g.finalGrade || ''
     };
   });
 
-  const updateLocalGrade = (studentId: string, colKey: string, val: string) => {
+  const updateLocalGrade = (studentCode: string, colKey: string, val: string) => {
     const numVal = val === '' ? '' : parseFloat(val);
     setLocalGrades(prev => ({
       ...prev,
-      [studentId]: {
-        ...(prev[studentId] || {}),
+      [studentCode]: {
+        ...(prev[studentCode] || {}),
         [colKey]: numVal === '' ? '' : Math.max(0, Math.min(10, numVal))
       }
     }));
   };
 
-  const handleSaveAllGrades = (onSuccess: (msg: string) => void) => {
+  // Lưu bảng điểm lên server
+  const handleSaveAllGrades = async (onSuccess: (msg: string) => void) => {
     if (!selectedClass) return;
+    const classId = getClassId(selectedClass);
 
-    // Convert localGrades into global store payloads
-    const payloads: GradeRecord[] = classStudents.map(student => {
-      const studentInputs = localGrades[student.id] || {};
-      const gradeId = `${selectedClass.id}_${student.id}`;
-      
-      const scoreObj: Record<string, number> = {};
-      columnsConfig.forEach(col => {
-        const val = studentInputs[col.key];
-        if (val !== undefined && val !== '') {
-          scoreObj[col.key] = val as number;
-        }
+    try {
+      setIsSaving(true);
+      const payloads = rawGrades.map((g: any) => {
+        const studentInputs = localGrades[String(g.studentCode)] || {};
+        return {
+          enrollmentId: Number(g.enrollmentId),
+          attendanceScore: studentInputs.attendanceScore !== '' ? Number(studentInputs.attendanceScore) : undefined,
+          midtermScore: studentInputs.midtermScore !== '' ? Number(studentInputs.midtermScore) : undefined,
+          finalExamScore: studentInputs.finalExamScore !== '' ? Number(studentInputs.finalExamScore) : undefined
+        };
       });
 
-      // Maintain backward compatibility properties in store
-      const progressScore = studentInputs['col_0'] !== undefined && studentInputs['col_0'] !== '' ? (studentInputs['col_0'] as number) : undefined;
-      const tx2Score = studentInputs['col_1'] !== undefined && studentInputs['col_1'] !== '' ? (studentInputs['col_1'] as number) : undefined;
-      const midScore = studentInputs['col_2'] !== undefined && studentInputs['col_2'] !== '' ? (studentInputs['col_2'] as number) : undefined;
-      const endScore = studentInputs['col_3'] !== undefined && studentInputs['col_3'] !== '' ? (studentInputs['col_3'] as number) : undefined;
-
-      return {
-        id: gradeId,
-        classId: selectedClass.id,
-        studentId: student.id,
-        studentName: student.name,
-        progressScore,
-        midScore,
-        endScore,
-        tx2Score, // stored on payload dynamically
-        scores: scoreObj
-      } as any;
-    });
-
-    updateGrades(payloads);
-    onSuccess('Lưu điểm thành công!');
+      await teacherApi.updateStudentGrades(classId, payloads);
+      onSuccess('Lưu bảng điểm thành công!');
+      fetchGradesData(); // Reload từ server
+    } catch (err) {
+      console.error('Lỗi khi lưu bảng điểm:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveColumnsConfig = (newConfig: Array<{ key: string; name: string; weight: number }>) => {
+  // Lưu cấu hình trọng số lên server
+  const handleSaveColumnsConfig = async (newConfig: Array<{ key: string; name: string; weight: number }>) => {
     if (!selectedClass) return;
-    localStorage.setItem(`hn_grade_cols_config_${selectedClass.id}`, JSON.stringify(newConfig));
-    setColumnsConfig(newConfig);
+    const classId = getClassId(selectedClass);
 
-    // Reset local grades with new config columns
-    setLocalGrades(prev => {
-      const updated = { ...prev };
-      Object.keys(updated).forEach(studentId => {
-        const studentRow = { ...updated[studentId] };
-        newConfig.forEach(col => {
-          if (studentRow[col.key] === undefined) {
-            studentRow[col.key] = '';
-          }
-        });
-        updated[studentId] = studentRow;
+    try {
+      const attW = Math.round((newConfig.find(c => c.key === 'attendanceScore')?.weight || 0.1) * 100);
+      const midW = Math.round((newConfig.find(c => c.key === 'midtermScore')?.weight || 0.3) * 100);
+      const finW = Math.round((newConfig.find(c => c.key === 'finalExamScore')?.weight || 0.6) * 100);
+
+      await teacherApi.configureGradeWeights(classId, {
+        attendanceWeight: attW,
+        midtermWeight: midW,
+        finalWeight: finW
       });
-      return updated;
-    });
+
+      // Save custom column names to localStorage
+      const customNames = {
+        attendanceScore: newConfig.find(c => c.key === 'attendanceScore')?.name || 'Chuyên Cần',
+        midtermScore: newConfig.find(c => c.key === 'midtermScore')?.name || 'Giữa Kỳ',
+        finalExamScore: newConfig.find(c => c.key === 'finalExamScore')?.name || 'Cuối Kỳ',
+      };
+      localStorage.setItem(`grading_names_${classId}`, JSON.stringify(customNames));
+
+      // Cập nhật selectedClass trọng số cục bộ
+      setSelectedClass((prev: any) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          attendanceWeight: attW,
+          midtermWeight: midW,
+          finalWeight: finW
+        };
+      });
+
+      // Cập nhật myClasses để đồng bộ lựa chọn sau này
+      setMyClasses((prevClasses: any[]) =>
+        prevClasses.map((c: any) =>
+          getClassId(c) === classId
+            ? { ...c, attendanceWeight: attW, midtermWeight: midW, finalWeight: finW }
+            : c
+        )
+      );
+
+      // Reload
+      fetchGradesData();
+    } catch (err) {
+      console.error('Lỗi khi cấu hình điểm:', err);
+    }
   };
 
   return {
@@ -264,9 +238,11 @@ export function useGradingViewModel(teacherId: string) {
     tempConfig,
     setTempConfig,
     localGrades,
+    setLocalGrades,
     updateLocalGrade,
     gradeRows,
     saveAllGrades: handleSaveAllGrades,
-    saveColumnsConfig: handleSaveColumnsConfig
+    saveColumnsConfig: handleSaveColumnsConfig,
+    isLoading: isLoadingClasses || isLoadingGrades || isSaving
   };
 }

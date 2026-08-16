@@ -1,63 +1,218 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '../../../models/store';
-import { ClassSection, AttendanceSession, AttendanceRecord, Student, AttendanceStatus } from '../../../types';
+import { teacherApi } from '../../../api/services/teacherApi';
 
+/**
+ * ViewModel cho trang "Điểm danh học viên" (Teacher Attendance).
+ * Kết nối API điểm danh thực tế với cơ chế auto-load thống kê đầy đủ.
+ */
 export function useAttendanceViewModel(teacherId: string) {
-  const {
-    classes,
-    students,
-    attendanceSessions,
-    attendanceRecords,
-    addAttendanceSession,
-    updateAttendanceSession,
-    updateAttendanceRecords
-  } = useStore();
+  const [myClasses, setMyClasses] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
+  
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [records, setRecords] = useState<any[]>([]);
+  const [classStudents, setClassStudents] = useState<any[]>([]);
+  
+  // Tích lũy tất cả records của mọi phiên để tính thống kê chuyên cần
+  const [allSessionsRecords, setAllSessionsRecords] = useState<any[]>([]);
 
-  const myClasses = classes.filter(c => c.teacherId === teacherId);
-
-  const [selectedClass, setSelectedClass] = useState<ClassSection | null>(null);
-  const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
   const [sessionTitle, setSessionTitle] = useState('Buổi học hôm nay');
   const [expireMinutes, setExpireMinutes] = useState(15);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(false);
 
-  // Set default class
-  useEffect(() => {
-    if (myClasses.length > 0 && !selectedClass) {
-      setSelectedClass(myClasses[0]);
-    }
-  }, [classes]);
+  const getClassId = (cls: any): number => {
+    return Number(cls.id);
+  };
 
-  // Set default session when class changes
+  // 1. Fetch danh sách lớp của GV
   useEffect(() => {
-    if (selectedClass) {
-      const classSessions = attendanceSessions.filter(s => s.classId === selectedClass.id);
-      if (classSessions.length > 0) {
-        setSelectedSession(classSessions[classSessions.length - 1]); // default to latest
-      } else {
-        setSelectedSession(null);
+    const fetchClasses = async () => {
+      try {
+        setIsLoadingClasses(true);
+        const res: any = await teacherApi.getMyClasses();
+        const items = res.content || res || [];
+        setMyClasses(items);
+        if (items.length > 0 && !selectedClass) {
+          setSelectedClass(items[0]);
+        }
+      } catch (err) {
+        console.error('Lỗi lấy lớp học:', err);
+      } finally {
+        setIsLoadingClasses(false);
       }
-    }
-  }, [selectedClass, attendanceSessions]);
+    };
+    fetchClasses();
+  }, [teacherId]);
 
-  // Real-time Countdown timer for active open sessions
+  // 2. Khi đổi lớp: Fetch danh sách phiên điểm danh + danh sách SV
+  useEffect(() => {
+    if (!selectedClass) return;
+    const classId = getClassId(selectedClass);
+
+    const fetchClassData = async () => {
+      try {
+        setIsLoadingSessions(true);
+        const sesRes: any = await teacherApi.getAttendanceSessions(classId);
+        const sessionsList = (sesRes.content || sesRes || []).map((s: any) => ({
+          ...s,
+          status: s.status ? s.status.toLowerCase() : 'closed'
+        }));
+        setSessions(sessionsList);
+        
+        if (sessionsList.length > 0) {
+          setSelectedSession(sessionsList[0]); // Mặc định chọn phiên mới nhất
+        } else {
+          setSelectedSession(null);
+          setRecords([]);
+        }
+        
+        // Gọi song song nạp tất cả records để làm báo cáo thống kê
+        fetchAllSessionsRecords(sessionsList);
+      } catch (err) {
+        console.error('Lỗi lấy phiên điểm danh:', err);
+      } finally {
+        setIsLoadingSessions(false);
+      }
+
+      try {
+        const studentRes: any = await teacherApi.getClassStudents(classId);
+        const enrollments = studentRes.content || studentRes || [];
+        // Map EnrollmentResponse -> Student format
+        const mappedStudents = enrollments.map((e: any) => ({
+          id: e.studentCode, // Dùng studentCode làm khóa chính cho khớp UI
+          name: e.studentName || 'Học viên',
+          status: 'active'
+        }));
+        setClassStudents(mappedStudents);
+      } catch (err) {
+        console.error('Lỗi lấy danh sách sinh viên:', err);
+      }
+    };
+
+    fetchClassData();
+  }, [selectedClass]);
+
+  // Nạp tất cả record của các phiên để tính tỷ lệ chuyên cần
+  const fetchAllSessionsRecords = async (sessionsList: any[]) => {
+    try {
+      const promises = sessionsList.map(s => teacherApi.getAttendanceRecords(s.id));
+      const results = await Promise.all(promises);
+      const accumulated: any[] = [];
+      results.forEach((recordsList: any, idx) => {
+        const ses = sessionsList[idx];
+        if (Array.isArray(recordsList)) {
+          recordsList.forEach((r: any) => {
+            accumulated.push({
+              sessionId: String(ses.id),
+              studentId: r.studentCode,
+              status: r.status.toLowerCase()
+            });
+          });
+        }
+      });
+      // Lọc trùng lặp do lỗi dữ liệu cũ trong backend
+      const uniqueAccumulated: any[] = [];
+      const seen = new Set<string>();
+      accumulated.forEach(r => {
+        const key = `${r.sessionId}-${r.studentId}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueAccumulated.push(r);
+        }
+      });
+      setAllSessionsRecords(uniqueAccumulated);
+    } catch (err) {
+      console.error('Lỗi nạp thống kê điểm danh:', err);
+    }
+  };
+
+  // 3. Khi đổi phiên điểm danh: Load danh sách records tương ứng
+  useEffect(() => {
+    if (!selectedSession) {
+      setRecords([]);
+      return;
+    }
+
+    const fetchRecords = async () => {
+      try {
+        setIsLoadingRecords(true);
+        const res: any = await teacherApi.getAttendanceRecords(selectedSession.id);
+        const mapped = (res || []).map((r: any) => ({
+          id: String(r.id),
+          sessionId: String(r.attendanceSessionId),
+          studentId: r.studentCode,
+          studentName: r.studentName,
+          status: r.status.toLowerCase(), // 'present' | 'absent' | 'late'
+          note: r.note || ''
+        }));
+        const uniqueMapped: any[] = [];
+        const seenRecords = new Set<string>();
+        mapped.forEach(r => {
+          if (!seenRecords.has(r.studentId)) {
+            seenRecords.add(r.studentId);
+            uniqueMapped.push(r);
+          }
+        });
+        
+        setRecords(uniqueMapped);
+      } catch (err) {
+        console.error('Lỗi lấy danh sách điểm danh:', err);
+      } finally {
+        setIsLoadingRecords(false);
+      }
+    };
+
+    fetchRecords();
+  }, [selectedSession]);
+
+  const [reopenTimestamps, setReopenTimestamps] = useState<Record<string, number>>({});
+
+  // 4. Đếm ngược thời gian cho phiên đang Mở (Open)
   useEffect(() => {
     let timer: NodeJS.Timeout;
-
     if (selectedSession && selectedSession.status === 'open') {
-      // Compute expiry based on created time
-      const createdTime = new Date(selectedSession.createdAt).getTime();
-      // Store dynamic expirations using custom mock limit or 15 mins
+      const parseDateSafe = (val: any) => {
+        if (!val) return new Date();
+        if (Array.isArray(val)) {
+          const [y, m, d, hr, min, sec] = val;
+          return new Date(y, m - 1, d, hr || 0, min || 0, sec || 0);
+        }
+        return new Date(val);
+      };
+
+      const createdDate = parseDateSafe(selectedSession.createdAt);
+      const createdTime = isNaN(createdDate.getTime()) ? Date.now() : createdDate.getTime();
+      
+      // Sử dụng thời gian mở lại nếu có, nếu không dùng thời gian tạo gốc
+      const baseTime = reopenTimestamps[selectedSession.id] || createdTime;
       const durationMs = expireMinutes * 60 * 1000;
-      const expiryTime = createdTime + durationMs;
+      const expiryTime = baseTime + durationMs;
+      
+      let alreadyClosing = false;
 
       const updateTimer = () => {
         const now = Date.now();
         const diff = Math.max(0, Math.floor((expiryTime - now) / 1000));
         
+        if (isNaN(expiryTime)) {
+          setTimeRemaining(null);
+          return;
+        }
+
         if (diff <= 0) {
-          // Auto close session
-          updateAttendanceSession(selectedSession.id, { status: 'closed' });
+          // Chỉ tự động đóng nếu baseTime không quá cũ (ví dụ: phiên tạo từ hôm qua thì không tự đóng ngay khi mở lên)
+          const timeSinceBase = now - baseTime;
+          if (timeSinceBase > durationMs && timeSinceBase < durationMs + 2000) {
+             if (!alreadyClosing) {
+                alreadyClosing = true;
+                handleForceCloseSession(() => {});
+             }
+          }
           setTimeRemaining(0);
         } else {
           setTimeRemaining(diff);
@@ -73,92 +228,132 @@ export function useAttendanceViewModel(teacherId: string) {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [selectedSession, expireMinutes, attendanceSessions]);
+  }, [selectedSession, expireMinutes, reopenTimestamps]);
 
-  const classSessions = selectedClass
-    ? attendanceSessions.filter(s => s.classId === selectedClass.id)
-    : [];
-
-  const currentRecords = selectedSession
-    ? attendanceRecords.filter(r => r.sessionId === selectedSession.id)
-    : [];
-
-  const classStudents = selectedClass
-    ? students.filter(s => selectedClass.studentIds.includes(s.id) && s.status === 'active')
-    : [];
-
-  // Calculate attendance ratios for each student in the selected class
+  // Tính thống kê chuyên cần cho từng học viên
   const getStudentStats = (studentId: string) => {
-    // Get all completed/closed sessions for this class (or all sessions)
-    const classSessionIds = classSessions.map(s => s.id);
-    const records = attendanceRecords.filter(r => r.classId === selectedClass?.id && r.studentId === studentId && classSessionIds.includes(r.sessionId));
-    
-    const total = records.length;
-    const present = records.filter(r => r.status === 'present').length;
-    const late = records.filter(r => r.status === 'late').length;
-    const absent = records.filter(r => r.status === 'absent').length;
-
+    const studentRecords = allSessionsRecords.filter(r => r.studentId === studentId);
+    const total = studentRecords.length;
+    const present = studentRecords.filter(r => r.status === 'present').length;
+    const late = studentRecords.filter(r => r.status === 'late').length;
+    const absent = studentRecords.filter(r => r.status === 'absent').length;
     const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
 
     return { total, present, late, absent, rate };
   };
 
-  const handleCreateSession = (title: string, date: string, status: 'open' | 'closed', onSuccess: (msg: string) => void) => {
+  // Tạo phiên điểm danh mới
+  const handleCreateSession = async (title: string, date: string, status: 'open' | 'closed', onSuccess: (msg: string) => void) => {
     if (!selectedClass) return;
+    try {
+      const classId = getClassId(selectedClass);
+      const res: any = await teacherApi.createAttendanceSession(classId, {
+        title,
+        sessionDate: date,
+        status: status.toUpperCase()
+      });
 
-    const session = addAttendanceSession({
-      classId: selectedClass.id,
-      date: date,
-      title: title,
-      status: status
-    });
+      // Reload danh sách phiên học
+      const sesRes: any = await teacherApi.getAttendanceSessions(classId);
+      const sessionsList = (sesRes.content || sesRes || []).map((s: any) => ({
+        ...s,
+        status: s.status ? s.status.toLowerCase() : 'closed'
+      }));
+      setSessions(sessionsList);
+      
+      const newSession = sessionsList.find((s: any) => s.id === res.id) || {
+        ...res,
+        status: res.status ? res.status.toLowerCase() : 'closed'
+      };
+      setSelectedSession(newSession);
+      fetchAllSessionsRecords(sessionsList);
 
-    setSelectedSession(session);
-    onSuccess(`Đã tạo phiên học "${title}" thành công!`);
-  };
-
-  const handleReopenSession = (sessionId: string, onSuccess: (msg: string) => void) => {
-    updateAttendanceSession(sessionId, { status: 'open', createdAt: new Date().toISOString() });
-    
-    // Auto select the reopened session
-    const reopenedSes = attendanceSessions.find(s => s.id === sessionId);
-    if (reopenedSes) {
-      setSelectedSession({ ...reopenedSes, status: 'open', createdAt: new Date().toISOString() });
+      onSuccess(`Đã tạo phiên điểm danh "${title}" thành công!`);
+    } catch (err: any) {
+      console.error(err);
     }
-    
-    onSuccess('Đã mở lại phiên điểm danh thành công!');
   };
 
-  const handleUpdateRecordStatus = (studentId: string, name: string, status: AttendanceStatus) => {
-    if (!selectedSession) return;
-
-    updateAttendanceRecords([
-      {
-        sessionId: selectedSession.id,
-        classId: selectedSession.classId,
-        studentId,
-        studentName: name,
-        status,
-        noted: ''
+  // Mở lại phiên điểm danh
+  const handleReopenSession = async (sessionId: string | number, onSuccess: (msg: string) => void) => {
+    try {
+      await teacherApi.updateAttendanceSessionStatus(Number(sessionId), 'OPEN');
+      setReopenTimestamps(prev => ({ ...prev, [String(sessionId)]: Date.now() }));
+      
+      if (selectedClass) {
+        const classId = getClassId(selectedClass);
+        const sesRes: any = await teacherApi.getAttendanceSessions(classId);
+        const sessionsList = (sesRes.content || sesRes || []).map((s: any) => ({
+          ...s,
+          status: s.status ? s.status.toLowerCase() : 'closed'
+        }));
+        setSessions(sessionsList);
+        const updated = sessionsList.find((s: any) => s.id === sessionId);
+        if (updated) setSelectedSession(updated);
       }
-    ]);
+      onSuccess('Đã mở lại phiên điểm danh thành công!');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleForceCloseSession = (onSuccess: (msg: string) => void) => {
+  // Chấm điểm danh thủ công từng sinh viên
+  const handleUpdateRecordStatus = async (studentId: string, name: string, status: string) => {
     if (!selectedSession) return;
-    updateAttendanceSession(selectedSession.id, { status: 'closed' });
-    
-    // Keep UI in sync
-    setSelectedSession(prev => prev ? { ...prev, status: 'closed' } : null);
-    setTimeRemaining(null);
-    onSuccess('Đã đóng phiên điểm danh thủ công thành công!');
+    const record = records.find(r => r.studentId === studentId);
+    if (!record) return;
+
+    try {
+      // Chỉ cập nhật state nội bộ (Local state) - API call sẽ được thực hiện khi bấm Lưu
+      setRecords(prev => prev.map(r => r.studentId === studentId ? { ...r, status: status.toLowerCase() } : r));
+      setAllSessionsRecords(prev => prev.map(r => (r.sessionId === String(selectedSession.id) && r.studentId === studentId) ? { ...r, status: status.toLowerCase() } : r));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveBulkAttendance = async (localAttendance: Record<string, string>, onSuccess: () => void, onError: () => void) => {
+    if (!selectedSession) return;
+    try {
+      setIsLoadingRecords(true);
+      const updatePromises = Object.entries(localAttendance).map(([studentId, status]) => {
+        const record = records.find(r => r.studentId === studentId);
+        if (record) {
+          return teacherApi.updateAttendanceRecord(Number(record.id), { status: status.toUpperCase() });
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(updatePromises);
+      onSuccess();
+    } catch (err) {
+      console.error(err);
+      onError();
+    } finally {
+      setIsLoadingRecords(false);
+    }
+  };
+
+  // Đóng phiên điểm danh
+  const handleForceCloseSession = async (onSuccess: (msg: string) => void) => {
+    if (!selectedSession) return;
+    try {
+      await teacherApi.updateAttendanceSessionStatus(Number(selectedSession.id), 'CLOSED');
+      setSelectedSession(prev => prev ? { ...prev, status: 'closed' } : null);
+      
+      // Update in sessions list
+      setSessions(prev => prev.map(s => s.id === selectedSession.id ? { ...s, status: 'closed' } : s));
+      setTimeRemaining(null);
+      onSuccess('Đã đóng phiên điểm danh thành công!');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return {
     myClasses,
     selectedClass,
     setSelectedClass,
-    sessions: classSessions,
+    sessions,
     selectedSession,
     setSelectedSession,
     sessionTitle,
@@ -166,13 +361,13 @@ export function useAttendanceViewModel(teacherId: string) {
     expireMinutes,
     setExpireMinutes,
     timeRemaining,
-    records: currentRecords,
+    records,
     classStudents,
     getStudentStats,
     createSession: handleCreateSession,
     reopenSession: handleReopenSession,
     updateRecordStatus: handleUpdateRecordStatus,
-    forceCloseSession: handleForceCloseSession,
-    updateAttendanceRecords
+    saveBulkAttendance: handleSaveBulkAttendance,
+    forceCloseSession: handleForceCloseSession
   };
 }

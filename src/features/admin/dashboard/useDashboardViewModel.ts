@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { AdminDashboardStats } from '../../../models/admin/AdminDashboard';
+import { AdminDashboardStats } from '../../../models/AdminDashboard';
 
 export function useDashboardViewModel() {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);

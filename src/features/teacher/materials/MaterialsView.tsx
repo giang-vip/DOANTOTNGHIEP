@@ -29,39 +29,25 @@ export function MaterialsView({ teacherId, triggerToast }: MaterialsViewProps) {
     errors,
     handleFileSelect,
     uploadMaterial,
-    deleteMaterial
+    deleteMaterial,
+    isLoading
   } = useMaterialsViewModel(teacherId);
 
   const triggerRealDownload = (mat: any) => {
-    const mockContent = `Trường Đại Học Hưng Nhân
-Tài liệu học tập chính thức: ${mat.title}
-File đính kèm gốc: ${mat.fileName}
-Dung lượng: ${mat.fileSize}
-Mã tài liệu học liệu: ${mat.id}
-Ngày đăng tải: ${mat.uploadedAt || new Date().toISOString()}
-
-Mô tả bài học:
-${mat.description || 'Không có mô tả chi tiết từ giảng viên.'}
-
----
-Nội dung tài liệu học tập được phân phối độc quyền trên Cổng Thông Tin Đào Tạo của Đại học Hưng Nhân.
-Nghiêm cấm sao chép, chia sẻ hoặc bán lại tài liệu học tập này ra ngoài dưới mọi hình thức trái phép.
-Chúc các bạn sinh viên học tập đạt kết quả tốt nhất!`;
-
-    const blob = new Blob([mockContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = mat.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    triggerToast(`Đã tải thành công tệp học liệu thật: "${mat.fileName}"`, 'success');
+    const fileUrl = mat.fileUrl || mat.url;
+    if (fileUrl) {
+      window.open(fileUrl, '_blank');
+      triggerToast(`Đang tải tệp học liệu: "${mat.fileName}"`, 'success');
+    } else {
+      triggerToast('Không tìm thấy đường dẫn tải tệp của học liệu.', 'danger');
+    }
   };
 
   const handleUploadAction = () => {
-    uploadMaterial((msg) => triggerToast(msg, 'success'));
+    uploadMaterial(
+      (msg) => triggerToast(msg, 'success'),
+      (msg) => triggerToast(msg, 'danger')
+    );
   };
 
   const getFileIcon = (type: string) => {
@@ -95,14 +81,14 @@ Chúc các bạn sinh viên học tập đạt kết quả tốt nhất!`;
             <select
               value={selectedClass?.id || ''}
               onChange={(e) => {
-                const found = myClasses.find(c => c.id === e.target.value);
+                const found = myClasses.find(c => String(c.id) === e.target.value);
                 if (found) setSelectedClass(found);
               }}
               className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700"
             >
               {myClasses.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.id} - {cls.subjectName}
+                  {cls.sectionCode || `LHP-${cls.id}`} - {cls.subjectName}
                 </option>
               ))}
             </select>
@@ -216,9 +202,10 @@ Chúc các bạn sinh viên học tập đạt kết quả tốt nhất!`;
           <>
             <button
               onClick={handleUploadAction}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+              disabled={isLoading}
+              className={`px-4 py-2 ${isLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'} text-white text-sm font-semibold rounded-lg transition-colors`}
             >
-              Xác nhận tải lên
+              {isLoading ? 'Đang xử lý...' : 'Xác nhận tải lên'}
             </button>
             <button
               onClick={() => setIsModalOpen(false)}

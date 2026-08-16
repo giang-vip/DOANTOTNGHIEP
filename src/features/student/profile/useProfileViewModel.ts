@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '../../../models/store';
-import { Student } from '../../../types';
+import { Student } from '../../../models';
 
 export function useProfileViewModel(studentProfile: Student, triggerToast: (msg: string, type: 'success' | 'danger') => void) {
-  const { users, updateStudent } = useStore();
   const [profile, setProfile] = useState<Student>(studentProfile);
   const [password, setPassword] = useState('123');
   const [oldPassword, setOldPassword] = useState('');
@@ -16,28 +14,28 @@ export function useProfileViewModel(studentProfile: Student, triggerToast: (msg:
   const [isTrainingFace, setIsTrainingFace] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState(0);
 
-  const matchingUser = users.find(u => u.id === studentProfile.userId);
-  const loginUsername = matchingUser ? matchingUser.username : studentProfile.id.toLowerCase();
+  const loginUsername = String(studentProfile.id || '').toLowerCase();
 
   useEffect(() => {
     // Get current student password
     const pwds = JSON.parse(localStorage.getItem('hn_passwords') || '{}');
     setPassword(pwds[loginUsername.toLowerCase()] || '123');
-  }, [studentProfile, loginUsername, users]);
+  }, [studentProfile, loginUsername]);
 
-  const handleUpdateContact = (email: string, phone: string) => {
-    // Call store update Student
-    updateStudent(studentProfile.id, { email, phone });
-
-    // Update login account email / phone in localStorage directly for persistence across loads
-    const savedUsers = JSON.parse(localStorage.getItem('hn_users') || '[]');
-    const updatedUsers = savedUsers.map((u: any) => 
-      u.id === studentProfile.userId ? { ...u, email, phone } : u
-    );
-    localStorage.setItem('hn_users', JSON.stringify(updatedUsers));
-
-    setProfile(prev => ({ ...prev, email, phone }));
-    triggerToast('Cập nhật hồ sơ liên hệ thành công!', 'success');
+  const handleUpdateContact = async (email: string, phone: string) => {
+    try {
+      const { default: axiosClient } = await import('../../../api/axiosClient');
+      await axiosClient.put('/auth/me', {
+        email: email,
+        phone: phone
+      });
+      
+      setProfile(prev => ({ ...prev, email, phone }));
+      triggerToast('Cập nhật hồ sơ liên hệ thành công! (Vui lòng tải lại trang để làm mới phiên đăng nhập)', 'success');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Lỗi cập nhật thông tin';
+      triggerToast(msg, 'danger');
+    }
   };
 
   const handleChangePassword = () => {
@@ -67,7 +65,6 @@ export function useProfileViewModel(studentProfile: Student, triggerToast: (msg:
   };
 
   const handleUpdateAvatar = (url: string) => {
-    updateStudent(studentProfile.id, { avatar: url });
     setProfile(prev => ({ ...prev, avatar: url }));
     triggerToast('Cập nhật ảnh đại diện sinh viên thành công!', 'success');
   };
@@ -92,7 +89,6 @@ export function useProfileViewModel(studentProfile: Student, triggerToast: (msg:
           setIsTrainingFace(false);
           
           // Save when complete
-          updateStudent(studentProfile.id, { facePhotos: updatedPhotos });
           setProfile(prevProfile => ({ ...prevProfile, facePhotos: updatedPhotos }));
           triggerToast('Huấn luyện khớp ảnh Face ID sinh trắc học thành công!', 'success');
           return 100;
@@ -105,7 +101,6 @@ export function useProfileViewModel(studentProfile: Student, triggerToast: (msg:
   const handleRemoveFacePhoto = (idx: number) => {
     const currentPhotos = profile.facePhotos || [];
     const updatedPhotos = currentPhotos.filter((_, i) => i !== idx);
-    updateStudent(studentProfile.id, { facePhotos: updatedPhotos });
     setProfile(prev => ({ ...prev, facePhotos: updatedPhotos }));
     triggerToast('Đã xóa mẫu ảnh Face ID.', 'success');
   };

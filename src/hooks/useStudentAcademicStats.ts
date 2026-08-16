@@ -1,90 +1,83 @@
-import { useMemo } from 'react';
-import { useStore } from '../models/store';
+import { useState, useEffect } from 'react';
+import { studentApi } from '../api/services/studentApi';
 import { convertToLetterGrade, convertToGpa4, getAcademicClassification, getClassificationVariant } from '../utils/gradeUtils';
-import { getDefaultColumnsConfig } from '../features/teacher/grading/useGradingViewModel';
 
 export function useStudentAcademicStats(studentId: string, studentMajorId?: string) {
-  const { classes, grades } = useStore();
+  const [stats, setStats] = useState({
+    cumulativeGpa: 0,
+    totalCredits: 0,
+    classification: 'Chưa xếp loại',
+    classificationVariant: 'default' as any,
+    completedCount: 0,
+    totalCount: 0,
+    loading: true
+  });
 
-  const stats = useMemo(() => {
-    // 1. Find all classes this student is registered in and consistent with major if provided
-    const studentClasses = classes.filter(c => {
-      const isEnrolled = c.studentIds.includes(studentId);
-      const majorMatches = !studentMajorId || !c.majorId || c.majorId === studentMajorId;
-      return isEnrolled && majorMatches;
-    });
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function fetchStats() {
+      try {
+        const [classesRes, gradesRes] = await Promise.all([
+          studentApi.getStudentClasses(0, 100),
+          studentApi.getMyGrades(undefined, 0, 100)
+        ]);
 
-    let completedCredits = 0;
-    let totalPoints = 0;
-    let completedClassesCount = 0;
+        if (!isMounted) return;
 
-    studentClasses.forEach(cls => {
-      // Get columns configuration for this class
-      const savedConfig = localStorage.getItem(`hn_grade_cols_config_${cls.id}`);
-      const columnsConfig = savedConfig ? JSON.parse(savedConfig) : getDefaultColumnsConfig(4);
+        const classes = (classesRes as any)?.content || [];
+        const grades = (gradesRes as any)?.content || [];
 
-      // Find Grade Record
-      const gradeId = `${cls.id}_${studentId}`;
-      const rec = grades.find(g => g.id === gradeId);
+        // 1. Find classes matching major (or all if no majorId)
+        const studentClasses = classes.filter((c: any) => {
+          const majorMatches = !studentMajorId || !c.majorId || c.majorId === studentMajorId;
+          return majorMatches;
+        });
 
-      // Resolve score for each column
-      const assessments = columnsConfig.map((col: any) => {
-        let score: number | '' = '';
-        if (rec?.scores && rec.scores[col.key] !== undefined) {
-          score = rec.scores[col.key];
-        } else {
-          // Backward compatibility mappings
-          if (col.key === 'col_0' && rec?.progressScore !== undefined) {
-            score = rec.progressScore;
-          } else if (col.key === 'col_1' && (rec as any)?.tx2Score !== undefined) {
-            score = (rec as any).tx2Score;
-          } else if (col.key === 'col_2' && rec?.midScore !== undefined) {
-            score = rec.midScore;
-          } else if (col.key === 'col_3' && rec?.endScore !== undefined) {
-            score = rec.endScore;
+        let completedCredits = 0;
+        let totalPoints = 0;
+        let completedClassesCount = 0;
+
+        studentClasses.forEach((cls: any) => {
+          // Find Grade Record
+          const rec = grades.find((g: any) => String(g.classSectionId) === String(cls.id));
+
+          // If final grade exists and is calculated
+          if (rec && rec.finalScore !== null && rec.finalScore !== undefined) {
+             const final10 = Number(rec.finalScore);
+             const letterGrade = rec.finalGrade || convertToLetterGrade(final10);
+             const gpa4 = convertToGpa4(letterGrade);
+
+             completedCredits += (rec.credits || cls.credits || 3);
+             totalPoints += gpa4 * (rec.credits || cls.credits || 3);
+             completedClassesCount++;
           }
-        }
-        return {
-          weight: col.weight,
-          score
-        };
-      });
+        });
 
-      // Calculate dynamic final score (Điểm tổng kết hệ 10)
-      let computedFinal = 0;
-      let allFilled = true;
-      assessments.forEach((ast: any) => {
-        if (ast.score === undefined || ast.score === '') {
-          allFilled = false;
-        } else {
-          computedFinal += ast.score * ast.weight;
-        }
-      });
+        const cumulativeGpa = completedCredits > 0 ? Math.round((totalPoints / completedCredits) * 100) / 100 : 0.0;
+        const classification = getAcademicClassification(cumulativeGpa);
+        const classificationVariant = getClassificationVariant(cumulativeGpa);
 
-      if (allFilled) {
-        const final10 = Math.round(computedFinal * 10) / 10;
-        const letterGrade = convertToLetterGrade(final10);
-        const gpa4 = convertToGpa4(letterGrade);
+        setStats({
+          cumulativeGpa,
+          totalCredits: completedCredits,
+          classification,
+          classificationVariant,
+          completedCount: completedClassesCount,
+          totalCount: studentClasses.length,
+          loading: false
+        });
 
-        completedCredits += cls.credits;
-        totalPoints += gpa4 * cls.credits;
-        completedClassesCount++;
+      } catch (err) {
+        console.error("Failed to load academic stats", err);
+        if (isMounted) setStats(prev => ({ ...prev, loading: false }));
       }
-    });
+    }
 
-    const cumulativeGpa = completedCredits > 0 ? Math.round((totalPoints / completedCredits) * 100) / 100 : 0.0;
-    const classification = getAcademicClassification(cumulativeGpa);
-    const classificationVariant = getClassificationVariant(cumulativeGpa);
+    fetchStats();
 
-    return {
-      cumulativeGpa,
-      totalCredits: completedCredits,
-      classification,
-      classificationVariant,
-      completedCount: completedClassesCount,
-      totalCount: studentClasses.length
-    };
-  }, [classes, grades, studentId]);
+    return () => { isMounted = false; };
+  }, [studentId, studentMajorId]);
 
   return stats;
 }

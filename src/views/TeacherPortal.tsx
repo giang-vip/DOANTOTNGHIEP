@@ -10,7 +10,7 @@ import { MaterialsView } from '../features/teacher/materials/MaterialsView';
 import { AssignmentsView } from '../features/teacher/assignments/AssignmentsView';
 import { GradingView } from '../features/teacher/grading/GradingView';
 import { ProfileView } from '../features/teacher/profile/ProfileView';
-import { Teacher } from '../types';
+import { Teacher } from '../models';
 
 interface TeacherPortalProps {
   teacherProfile: Teacher;
@@ -30,18 +30,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   switch (activeTab) {
     case 'dashboard':
-      return <MyClassesView teacherId={teacherProfile.id} triggerToast={handleToast} />;
+      return <MyClassesView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
     case 'attendance':
-      return <AttendanceView teacherId={teacherProfile.id} triggerToast={handleToast} />;
+      return <AttendanceView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
     case 'materials':
-      return <MaterialsView teacherId={teacherProfile.id} triggerToast={handleToast} />;
+      return <MaterialsView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
     case 'assignments':
-      return <AssignmentsView teacherId={teacherProfile.id} triggerToast={handleToast} />;
+      return <AssignmentsView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
     case 'grades':
-      return <GradingView teacherId={teacherProfile.id} triggerToast={handleToast} />;
+      return <GradingView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
     case 'profile':
       return <ProfileView teacherProfile={teacherProfile} triggerToast={handleToast} />;
     default:
-      return <MyClassesView teacherId={teacherProfile.id} triggerToast={handleToast} />;
+      return <MyClassesView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
   }
 };

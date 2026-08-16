@@ -19,6 +19,7 @@ export interface ClassSection {
   endDate: string;
   capacity: number;
   status?: string;
+  enrolledCount?: number;
 }
 
 export interface ClassSectionRequest {

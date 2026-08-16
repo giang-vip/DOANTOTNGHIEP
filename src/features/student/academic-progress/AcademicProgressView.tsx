@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAcademicProgressViewModel, SubjectGradeInfo } from './useAcademicProgressViewModel';
 import { Card, Badge } from '../../../components/UI';
-import { Student } from '../../../types';
+import { Student } from '../../../models';
 import {
   Award,
   BookOpen,
@@ -146,6 +146,21 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
                 <BarChart3 className="h-4 w-4 text-blue-600" /> Biểu đồ tiến trình điểm GPA theo Học kỳ
               </h3>
               <p className="text-[10px] text-slate-400">Trực quan hóa xu hướng điểm trung bình tích lũy hệ số 4</p>
+            </div>
+            {/* Legend for GPA colors */}
+            <div className="flex gap-3 text-[10px] font-semibold">
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-[#10b981]"></span>
+                <span className="text-slate-600">Giỏi/Xuất sắc (≥ 3.2)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-[#3b82f6]"></span>
+                <span className="text-slate-600">Khá (≥ 2.5)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-[#f59e0b]"></span>
+                <span className="text-slate-600">Trung bình/Yếu</span>
+              </div>
             </div>
           </div>
 

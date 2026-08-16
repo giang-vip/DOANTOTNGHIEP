@@ -1,4 +1,4 @@
-import { ClassSection, Student } from '../types';
+import { ClassSection, Student } from '../models';
 
 /**
  * Return the student classes that are both enrolled and consistent with the student's major.

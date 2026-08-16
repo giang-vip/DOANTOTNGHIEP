@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Student, StudentRequest } from '../../../models/admin/Student';
-import { Major } from '../../../models/admin/Major';
-import { Department } from '../../../models/admin/Department';
-import { SchoolClass } from '../../../models/admin/SchoolClass';
-import { UserAdmin } from '../../../models/admin/UserAdmin';
+import { Student, StudentRequest } from '../../../models/Student';
+import { Major } from '../../../models/Major';
+import { Department } from '../../../models/Department';
+import { SchoolClass } from '../../../models/SchoolClass';
+import { UserAdmin } from '../../../models/UserAdmin';
 
 export function useStudentListViewModel() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -187,14 +187,16 @@ export function useStudentListViewModel() {
     setIsLoading(true);
     try {
       if (editingItem && editingItem.id) {
-        await adminApi.updateStudent(editingItem.id, formData);
+        const updatedStudent = await adminApi.updateStudent(editingItem.id, formData);
+        setStudents(prev => prev.map(s => s.id === editingItem.id ? updatedStudent : s));
         onSuccess(`Đã cập nhật hồ sơ sinh viên ${formData.fullName} thành công!`);
       } else {
-        await adminApi.createStudent(formData);
+        const newStudent = await adminApi.createStudent(formData);
+        setStudents(prev => [newStudent, ...prev]);
+        setTotalElements(prev => prev + 1);
         onSuccess(`Đã tạo hồ sơ sinh viên ${formData.fullName} thành công!`);
       }
       setIsModalOpen(false);
-      fetchStudents();
     } catch (err: any) {
       alert(err.message || 'Có lỗi xảy ra khi lưu hồ sơ sinh viên');
     } finally {
@@ -207,8 +209,9 @@ export function useStudentListViewModel() {
       setIsLoading(true);
       try {
         await adminApi.deleteStudent(id);
+        setStudents(prev => prev.filter(s => s.id !== id));
+        setTotalElements(prev => prev - 1);
         onSuccess(`Đã xóa hồ sơ sinh viên ${name} thành công!`);
-        fetchStudents();
       } catch (err: any) {
         alert(err.message || 'Lỗi khi xóa hồ sơ');
       } finally {

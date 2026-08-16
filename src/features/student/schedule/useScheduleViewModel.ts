@@ -1,7 +1,5 @@
-import { useState } from 'react';
-import { useStore } from '../../../models/store';
-import { Student, ClassSection } from '../../../types';
-import { getConsistentStudentClasses } from '../../../utils/studentClassUtils';
+import { useState, useEffect } from 'react';
+import { Student, ClassSection } from '../../../models';
 
 export function getClassStatus(startDateStr?: string, endDateStr?: string, compareDateStr?: string) {
   if (!startDateStr || !endDateStr) return 'ongoing';
@@ -20,11 +18,32 @@ export function getClassStatus(startDateStr?: string, endDateStr?: string, compa
   return 'ongoing';
 }
 
-export function useScheduleViewModel(studentProfile: Student) {
-  const { classes } = useStore();
+import { studentApi } from '../../../api/services/studentApi';
 
-  // Enrolled classes for this student that also match their major assignment
-  const enrolledClasses = getConsistentStudentClasses(classes, studentProfile);
+export function useScheduleViewModel(studentProfile: Student) {
+  const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        setLoading(true);
+        const res = await studentApi.getStudentClasses(0, 100);
+        const allClasses = (res as any)?.content || [];
+        // Bỏ lọc bằng 'ongoing' theo ngày hiện tại, để cho phép xem toàn bộ thời khóa biểu
+        setEnrolledClasses(allClasses);
+      } catch (err) {
+        console.error('Lỗi khi tải lịch học:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClasses();
+
+    window.addEventListener('REFRESH_STUDENT_DATA', fetchClasses);
+    return () => window.removeEventListener('REFRESH_STUDENT_DATA', fetchClasses);
+  }, []);
 
   // State controls
   const [viewMode, setViewMode] = useState<'week' | 'day'>('week');

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { RegistrationPeriod, RegistrationPeriodRequest } from '../../../models/admin/RegistrationPeriod';
-import { Semester } from '../../../models/admin/Semester';
+import { RegistrationPeriod, RegistrationPeriodRequest } from '../../../models/RegistrationPeriod';
+import { Semester } from '../../../models/Semester';
 
 export function useRegistrationPeriodViewModel() {
   const [periods, setPeriods] = useState<RegistrationPeriod[]>([]);
@@ -82,8 +82,8 @@ export function useRegistrationPeriodViewModel() {
     setIsLoading(true);
     try {
       await adminApi.toggleRegistrationPeriod(id, !currentStatus);
+      setPeriods(prev => prev.map(p => p.id === id ? { ...p, isOpen: !currentStatus } : p));
       onSuccess(`Đã ${!currentStatus ? 'mở' : 'đóng'} cổng đăng ký thành công!`);
-      fetchData();
     } catch (err: any) {
       alert(err.message || 'Lỗi cập nhật trạng thái');
     } finally {
@@ -107,14 +107,35 @@ export function useRegistrationPeriodViewModel() {
     if (!validate()) return;
     setIsLoading(true);
     try {
-      await adminApi.createOrUpdateRegistrationPeriod(formData);
+      const updatedPeriod = await adminApi.createOrUpdateRegistrationPeriod(formData);
+      setPeriods(prev => {
+        const exists = prev.find(p => p.id === updatedPeriod.id);
+        if (exists) {
+          return prev.map(p => p.id === updatedPeriod.id ? updatedPeriod : p);
+        }
+        return [updatedPeriod, ...prev];
+      });
       onSuccess(`Đã cấu hình thời gian đăng ký thành công!`);
       setIsModalOpen(false);
-      fetchData();
     } catch (err: any) {
       alert(err.message || 'Lỗi lưu cấu hình');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number, onSuccess: (msg: string) => void) => {
+    if (confirm('Bạn có chắc chắn muốn xóa cấu hình này?')) {
+      setIsLoading(true);
+      try {
+        await adminApi.deleteRegistrationPeriod(id);
+        setPeriods(prev => prev.filter(p => p.id !== id));
+        onSuccess('Đã xóa cấu hình thành công!');
+      } catch (err: any) {
+        alert(err.message || 'Lỗi khi xóa cấu hình');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -132,6 +153,7 @@ export function useRegistrationPeriodViewModel() {
     openEditModal,
     handleInputChange,
     handleToggle,
-    handleSave
+    handleSave,
+    handleDelete
   };
 }

@@ -30,29 +30,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, error 
     await onLogin(username, password);
   };
 
-  const handleDemoLogin = async (demoUser: string, demoPass: string) => {
-    setUsername(demoUser);
-    setPassword(demoPass);
-    setFormError(null);
-    await onLogin(demoUser, demoPass);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative background blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/20 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-400/20 blur-[100px] pointer-events-none" />
 
-      <div 
+      <div
         className="w-full max-w-5xl bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/5 border border-white flex flex-col md:flex-row relative z-10"
         style={{ animation: 'fadeInUp 0.6s ease-out forwards' }}
       >
-        
+
         {/* Left decoration column */}
         <div className="w-full md:w-1/2 bg-slate-900 p-8 md:p-12 text-white flex flex-col justify-between relative overflow-hidden group">
           {/* Overlay grid lines for tech look */}
           <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:16px_16px] opacity-60"></div>
-          
+
           {/* Animated gradient orb */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/30 rounded-full blur-[80px] group-hover:bg-blue-400/40 transition-colors duration-700"></div>
 
@@ -61,7 +54,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, error 
               <GraduationCap className="h-7 w-7 text-white drop-shadow-md" />
             </div>
             <div>
-              <p className="text-sm font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">HƯNG NHÂN</p>
+              <p className="text-sm font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">ABC</p>
               <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-0.5">Smart Study Portal</p>
             </div>
           </div>
@@ -72,7 +65,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, error 
               <span className="text-xs font-medium text-slate-200">Hệ thống chuyển đổi số toàn diện</span>
             </div>
             <h2 className="text-3xl md:text-5xl font-bold leading-tight tracking-tight mb-6">
-              Quản lý & Hỗ trợ<br/>Học tập Hưng Nhân
+              Quản lý & Hỗ trợ<br />Học tập ABC
             </h2>
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm font-medium">
               Nền tảng đào tạo hiện đại kết nối trực tiếp Sinh viên - Giảng viên - Nhà trường để tối ưu hóa tiến trình học tập.
@@ -80,7 +73,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, error 
           </div>
 
           <div className="relative z-10 text-xs text-slate-500 font-medium">
-            © 2026 Hưng Nhân Smart Education.
+            © 2026 ABC Smart Education.
           </div>
         </div>
 
@@ -157,49 +150,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, error 
               )}
             </button>
           </form>
-
-          {/* Quick Demo logins */}
-          <div className="mt-10 pt-8 border-t border-slate-100">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <span className="h-px bg-slate-100 flex-1"></span>
-              Thử nghiệm nhanh
-              <span className="h-px bg-slate-100 flex-1"></span>
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('admin', 'admin123')}
-                disabled={isLoading}
-                className="p-3.5 text-center rounded-2xl border-2 border-slate-100 hover:border-red-200 hover:bg-red-50/50 text-xs transition-all cursor-pointer group"
-              >
-                <p className="text-red-600 font-bold mb-1 group-hover:scale-105 transition-transform">Admin</p>
-                <p className="text-[10px] text-slate-400 font-medium">admin123</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('gv_nguyenvana', '123')}
-                disabled={isLoading}
-                className="p-3.5 text-center rounded-2xl border-2 border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 text-xs transition-all cursor-pointer group"
-              >
-                <p className="text-blue-600 font-bold mb-1 group-hover:scale-105 transition-transform">Giảng viên</p>
-                <p className="text-[10px] text-slate-400 font-medium">123</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('sv_nguyenxuanmanh', '123')}
-                disabled={isLoading}
-                className="p-3.5 text-center rounded-2xl border-2 border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 text-xs transition-all cursor-pointer group"
-              >
-                <p className="text-emerald-600 font-bold mb-1 group-hover:scale-105 transition-transform">Sinh viên</p>
-                <p className="text-[10px] text-slate-400 font-medium">123</p>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
-      
+
       {/* Inline styles for custom animations */}
       <style>{`
         @keyframes fadeInUp {
@@ -215,4 +168,3 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, isLoading, error 
     </div>
   );
 };
-

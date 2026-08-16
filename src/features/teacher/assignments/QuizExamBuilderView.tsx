@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { QuizQuestion, Assignment } from '../../../types';
+import { QuizQuestion, Assignment } from '../../../models';
 import { QuizReviewPanel } from '../../../components/QuizReviewPanel';
 import { Upload, FileText, Image as ImageIcon, Eye, Save, X, ChevronDown, ChevronUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { teacherApi } from '../../../api/services/teacherApi';
 
 /**
  * Interface props cho màn hình QuizExamBuilderView.
@@ -30,6 +31,8 @@ export interface QuizExamBuilderViewProps {
  * 3. Bấm "Tạo khung câu hỏi" và tick chọn đáp án đúng A/B/C/D cho từng câu
  * 4. (Tuỳ chọn) Nhập thêm nội dung chi tiết & giải thích nâng cao nếu cần
  */
+
+// Xử lý upload file đề thi (PDF hoặc Ảnh) lên Cloudinary
 export const QuizExamBuilderView: React.FC<QuizExamBuilderViewProps> = ({
   assignment,
   existingQuestions = [],
@@ -105,8 +108,8 @@ export const QuizExamBuilderView: React.FC<QuizExamBuilderViewProps> = ({
     triggerToast?.(`Đã tạo khung cho ${questionCountInput} câu hỏi (Mỗi câu ${(10 / questionCountInput).toFixed(2)}đ)`, 'info');
   };
 
-  // Xử lý upload giả lập file đề thi (PDF hoặc Ảnh)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Xử lý upload thực tế file đề thi lên Cloudinary
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -120,17 +123,17 @@ export const QuizExamBuilderView: React.FC<QuizExamBuilderViewProps> = ({
       }
 
       const fileType: 'pdf' | 'image' = isPdfFile ? 'pdf' : 'image';
-      const fakeUrl = URL.createObjectURL(file);
+      triggerToast?.('Đang tải file đề thi lên Cloudinary...', 'info');
 
-      setExamFileUrl(fakeUrl);
+      const url = await teacherApi.uploadFile(file);
+      setExamFileUrl(url as any);
       setExamFileName(file.name);
       setExamFileType(fileType);
-      triggerToast?.(`Đã tải lên file đề thi: ${file.name}`, 'success');
-    } catch (err) {
+      triggerToast?.(`Đã tải lên file đề thi thành công!`, 'success');
+    } catch (err: any) {
       console.error('QuizExamBuilderView: file upload error', err);
-      triggerToast?.('Có lỗi khi tải lên file đề thi.', 'danger');
+      triggerToast?.('Có lỗi khi tải lên file đề thi: ' + (err.message || 'Lỗi hệ thống'), 'danger');
     }
-
   };
 
   // Đổi đáp án đúng của câu X

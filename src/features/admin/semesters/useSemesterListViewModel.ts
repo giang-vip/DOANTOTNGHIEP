@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
-import { Semester, SemesterRequest } from '../../../models/admin/Semester';
-import { AcademicYear } from '../../../models/admin/AcademicYear';
+import { Semester, SemesterRequest } from '../../../models/Semester';
+import { AcademicYear } from '../../../models/AcademicYear';
 
 export function useSemesterListViewModel() {
   const [semesters, setSemesters] = useState<Semester[]>([]);

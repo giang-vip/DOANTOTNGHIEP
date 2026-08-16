@@ -1,11 +1,13 @@
 import React from 'react';
 import { Card, Badge } from './UI';
-import { ClassSection } from '../types';
+import { ClassSection } from '../models';
 import { Clock, MapPin, User } from 'lucide-react';
 
 interface WeeklyTimetableProps {
   enrolledClasses: ClassSection[];
   currentDate?: Date;
+  onDropClass?: (cls: ClassSection) => void;
+  ignoreDateFilter?: boolean;
 }
 
 // Function to calculate the Monday and Sunday dates of the week containing date d
@@ -56,11 +58,12 @@ export const getPeriodTime = (period: number, isEnd: boolean) => {
   return isEnd ? (endTimes[period] || '12:05') : (startTimes[period] || '07:00');
 };
 
-export const getTimeLabel = (start: number, end: number) => {
+export const getTimeLabel = (start?: number, end?: number) => {
+  if (!start || !end) return 'Chưa rõ thời gian';
   return `${getPeriodTime(start, false)} - ${getPeriodTime(end, true)}`;
 };
 
-export function WeeklyTimetable({ enrolledClasses, currentDate = new Date() }: WeeklyTimetableProps) {
+export function WeeklyTimetable({ enrolledClasses, currentDate = new Date(), onDropClass, ignoreDateFilter = false }: WeeklyTimetableProps) {
   const { monday, sunday } = getWeekRange(currentDate);
 
   const daysOfWeek = [
@@ -78,6 +81,7 @@ export function WeeklyTimetable({ enrolledClasses, currentDate = new Date() }: W
 
   // Helper to check if a class falls in the active week
   const isClassActiveInWeek = (cls: ClassSection) => {
+    if (ignoreDateFilter) return true;
     if (!cls.startDate || !cls.endDate) return true;
     return cls.startDate <= sunStr && cls.endDate >= monStr;
   };
@@ -86,7 +90,7 @@ export function WeeklyTimetable({ enrolledClasses, currentDate = new Date() }: W
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
       {daysOfWeek.map((day) => {
         // Filter classes for this day and active in this week
-        const dayClasses = enrolledClasses.filter(c => c.dayOfWeek === day.num && isClassActiveInWeek(c));
+        const dayClasses = enrolledClasses.filter(c => ((c as any).dayOfWeek === day.num || c.weekday === day.num) && isClassActiveInWeek(c));
         const hasClasses = dayClasses.length > 0;
 
         return (
@@ -106,12 +110,21 @@ export function WeeklyTimetable({ enrolledClasses, currentDate = new Date() }: W
                 dayClasses.map((cls) => (
                   <Card key={cls.id} className="p-3.5 border border-slate-150 hover:border-blue-300 transition-all flex flex-col justify-between h-48 gap-2 text-left bg-white relative group">
                     <span className="absolute top-2 right-2 text-[9px] font-bold text-blue-600/80 font-mono bg-blue-50 px-1 py-0.5 rounded leading-none">
-                      {cls.credits} TC
+                      {(cls as any).credits || 3} TC
                     </span>
 
                     <div className="space-y-1">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 justify-between w-full">
                         <Badge variant="success" className="text-[9px]">Lớp đang mở</Badge>
+                        {onDropClass && (
+                          <button
+                            onClick={() => onDropClass(cls)}
+                            title="Hủy lớp học phần này"
+                            className="bg-rose-50 text-rose-500 hover:bg-rose-100 p-1 rounded transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                          </button>
+                        )}
                       </div>
                       <h4 className="text-[11px] font-bold text-slate-850 leading-tight group-hover:text-blue-600 transition-colors line-clamp-2 mt-1">
                         {cls.subjectName}
@@ -122,7 +135,11 @@ export function WeeklyTimetable({ enrolledClasses, currentDate = new Date() }: W
                     <div className="space-y-1.5 border-t border-slate-100 pt-1.5">
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-600 leading-none">
                         <Clock className="h-3.5 w-3.5 text-slate-450 shrink-0" />
-                        <span className="font-bold text-slate-800">{getTimeLabel(cls.periodStart, cls.periodEnd)}</span>
+                        <span className="font-bold text-slate-800">
+                          {cls.startTime && cls.endTime 
+                            ? `${cls.startTime.substring(0,5)} - ${cls.endTime.substring(0,5)}`
+                            : getTimeLabel((cls as any).periodStart, (cls as any).periodEnd)}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-600 leading-none">
                         <MapPin className="h-3.5 w-3.5 text-slate-450 shrink-0" />
