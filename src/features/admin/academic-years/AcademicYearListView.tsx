@@ -1,14 +1,17 @@
 import React from 'react';
 import { useAcademicYearListViewModel } from './useAcademicYearListViewModel';
 import { Card, Table, Modal, FormInput } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, Calendar } from 'lucide-react';
 import { AcademicYear } from '../../../models/AcademicYear';
+import { useSearchParams } from 'react-router-dom';
 
 interface AcademicYearListViewProps {
+  onTabChange?: (tab: string) => void;
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function AcademicYearListView({ triggerToast }: AcademicYearListViewProps) {
+export function AcademicYearListView({ onTabChange, triggerToast }: AcademicYearListViewProps) {
+  const [, setSearchParams] = useSearchParams();
   const {
     academicYears,
     isLoading,
@@ -49,7 +52,19 @@ export function AcademicYearListView({ triggerToast }: AcademicYearListViewProps
     {
       header: 'Thao Tác',
       accessor: (item: AcademicYear) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => {
+              if (onTabChange) {
+                setSearchParams({ yearId: item.id!.toString() });
+                onTabChange('semesters');
+              }
+            }}
+            title="Xem Học Kỳ"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+          >
+            <Calendar className="h-4 w-4" />
+          </button>
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}

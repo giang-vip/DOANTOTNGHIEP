@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMyClassesViewModel } from './useMyClassesViewModel';
 import { Card, Table, FormInput, Badge } from '../../../components/UI';
-import { BookOpen, Users, Megaphone, Calendar, Send, Trash2, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Users, Megaphone, Calendar, Send, Trash2, CalendarDays, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { WeeklyTimetable } from '../../../components/WeeklyTimetable';
 import { ClassSection } from '../../../models';
 
@@ -22,10 +22,11 @@ function getWeekRange(d: Date) {
 
 interface MyClassesViewProps {
   teacherId: string;
+  teacherName?: string;
   triggerToast: (msg: string, type: 'success' | 'danger') => void;
 }
 
-export function MyClassesView({ teacherId, triggerToast }: MyClassesViewProps) {
+export function MyClassesView({ teacherId, teacherName, triggerToast }: MyClassesViewProps) {
   const [showTimetable, setShowTimetable] = useState(true);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   
@@ -63,7 +64,9 @@ export function MyClassesView({ teacherId, triggerToast }: MyClassesViewProps) {
     isLoadingClasses,
     isLoadingStudents,
     isLoadingAnnouncements,
-    isPosting
+    isPosting,
+    currentSemesterName,
+    currentYearName
   } = useMyClassesViewModel(teacherId);
 
   const [detailTab, setDetailTab] = useState<'roster' | 'announcements'>('roster');
@@ -163,6 +166,30 @@ export function MyClassesView({ teacherId, triggerToast }: MyClassesViewProps) {
 
   return (
     <div className="space-y-6">
+      {/* Top Banner (Greeting Card) */}
+      <Card className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-lg shadow-blue-900/10 border-none text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+        <div className="space-y-3 relative z-10 w-full">
+          <span className="text-[10px] font-bold tracking-widest text-blue-200 uppercase inline-flex items-center gap-1">
+            <Sparkles className="h-3 w-3 animate-spin" /> Hệ thống quản lý học tập Hưng Nhân
+          </span>
+          
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between w-full gap-4">
+            <div>
+              <h2 className="text-2xl font-black leading-tight mb-1">✨ Chào mừng trở lại, Thầy/Cô {teacherName || 'Giảng viên'}!</h2>
+              <p className="text-sm text-blue-100 font-medium">📅 Hệ thống đang hoạt động ở: {currentSemesterName} | Năm học: {currentYearName}</p>
+            </div>
+            
+            {/* Teacher Info Card */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex flex-col gap-1.5 min-w-[200px]">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-blue-200 uppercase font-bold tracking-wider">Mã GV</span>
+                <span className="font-mono text-sm font-bold text-white bg-black/20 px-1.5 py-0.5 rounded">{teacherId}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* Timetable toggle panel */}
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">

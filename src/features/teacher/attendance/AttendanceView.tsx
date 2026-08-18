@@ -53,7 +53,7 @@ export function AttendanceView({ teacherId, triggerToast }: AttendanceViewProps)
     } else {
       setLocalAttendance({});
     }
-  }, [selectedSession, records.length, classStudents.length]);
+  }, [selectedSession, records, classStudents]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -342,11 +342,11 @@ export function AttendanceView({ teacherId, triggerToast }: AttendanceViewProps)
                   {/* Manual Roll Call table */}
                   <Card className="p-4 space-y-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Sổ ghi điểm danh chi tiết</h4>
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Sổ ghi điểm danh chi tiết - {selectedSession.title}</h4>
                       <span className="text-[10px] text-slate-400">Chọn trạng thái và bấm "Lưu điểm danh" dưới đây</span>
                     </div>
 
-                    <div className="divide-y divide-slate-100">
+                    <div className="max-h-[500px] overflow-y-auto divide-y divide-slate-100 pr-2">
                       {classStudents.map((stud) => {
                         const status = localAttendance[stud.id] || 'absent';
                         return (
@@ -403,7 +403,7 @@ export function AttendanceView({ teacherId, triggerToast }: AttendanceViewProps)
                       })}
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 flex justify-end">
+                    <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end rounded-b-xl -mx-4 -mb-4 mt-2">
                       <button
                         onClick={() => {
                           if (Object.keys(localAttendance).length === 0) {

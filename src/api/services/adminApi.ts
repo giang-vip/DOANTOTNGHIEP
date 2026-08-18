@@ -30,9 +30,28 @@ export const adminApi = {
     await axiosClient.delete(`/admin/announcements/${id}`);
   },
 
-  // === DASHBOARD API ===
-  getDashboardStats: async (): Promise<AdminDashboardStats> => {
+  // ==========================================
+  // DASHBOARD
+  // ==========================================
+  getDashboardStats: async (): Promise<any> => {
     return await axiosClient.get('/admin/dashboard/stats');
+  },
+
+  getGradeDistribution: async (params?: {
+    yearId?: number;
+    semesterId?: number;
+    classSectionId?: number;
+    departmentId?: number;
+    majorId?: number;
+  }): Promise<Record<string, number>> => {
+    const query = new URLSearchParams();
+    if (params?.yearId) query.append('yearId', params.yearId.toString());
+    if (params?.semesterId) query.append('semesterId', params.semesterId.toString());
+    if (params?.classSectionId) query.append('classSectionId', params.classSectionId.toString());
+    if (params?.departmentId) query.append('departmentId', params.departmentId.toString());
+    if (params?.majorId) query.append('majorId', params.majorId.toString());
+    
+    return await axiosClient.get(`/admin/dashboard/grade-distribution?${query.toString()}`);
   },
 
   // === DEPARTMENT API ===
@@ -91,14 +110,19 @@ export const adminApi = {
   },
 
   // --- Subjects ---
-  getAllSubjects: async (page = 0, size = 10, search?: string): Promise<PageResponse<Subject>> => {
+  getAllSubjects: async (page = 0, size = 10, search?: string, departmentId?: number, majorId?: number): Promise<PageResponse<Subject>> => {
     let url = `/admin/subjects?page=${page}&size=${size}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (search && search.trim() !== '') url += `&search=${encodeURIComponent(search.trim())}`;
+    if (departmentId !== undefined && departmentId !== null) url += `&departmentId=${departmentId}`;
+    if (majorId !== undefined && majorId !== null) url += `&majorId=${majorId}`;
     const res: any = await axiosClient.get(url);
     return res;
   },
-  getAllSubjectsList: async (): Promise<Subject[]> => {
-    const res: any = await axiosClient.get('/admin/subjects?page=0&size=5000');
+  getAllSubjectsList: async (departmentId?: number, majorId?: number): Promise<Subject[]> => {
+    let url = `/admin/subjects?page=0&size=5000&_t=${new Date().getTime()}`;
+    if (departmentId !== undefined && departmentId !== null) url += `&departmentId=${departmentId}`;
+    if (majorId !== undefined && majorId !== null) url += `&majorId=${majorId}`;
+    const res: any = await axiosClient.get(url);
     return res.content || [];
   },
   createSubject: async (data: SubjectRequest): Promise<Subject> => {
@@ -114,14 +138,17 @@ export const adminApi = {
   // --- Majors ---
   getAllMajors: async (page = 0, size = 10, search?: string, departmentId?: number): Promise<PageResponse<Major>> => {
     let url = `/admin/majors?page=${page}&size=${size}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    if (departmentId) url += `&departmentId=${departmentId}`;
+    if (search && search.trim() !== '') url += `&search=${encodeURIComponent(search.trim())}`;
+    if (departmentId !== undefined && departmentId !== null && !isNaN(departmentId)) url += `&departmentId=${departmentId}`;
     const res: any = await axiosClient.get(url);
     return res;
   },
   getAllMajorsList: async (): Promise<Major[]> => {
     const res: any = await axiosClient.get('/admin/majors?page=0&size=5000');
     return res.content || [];
+  },
+  getMajorById: async (id: number): Promise<Major> => {
+    return await axiosClient.get(`/admin/majors/${id}`);
   },
   createMajor: async (data: MajorRequest): Promise<Major> => {
     return await axiosClient.post('/admin/majors', data);
@@ -131,6 +158,17 @@ export const adminApi = {
   },
   deleteMajor: async (id: number): Promise<void> => {
     await axiosClient.delete(`/admin/majors/${id}`);
+  },
+
+  // --- Major Subjects ---
+  addSubjectToMajor: async (majorId: number, data: { subjectId: number; semesterIndex?: number; type?: string }): Promise<Subject> => {
+    return await axiosClient.post(`/admin/majors/${majorId}/subjects`, data);
+  },
+  updateSubjectInMajor: async (majorId: number, subjectId: number, data: { semesterIndex?: number; type?: string }): Promise<Subject> => {
+    return await axiosClient.put(`/admin/majors/${majorId}/subjects/${subjectId}`, data);
+  },
+  removeSubjectFromMajor: async (majorId: number, subjectId: number): Promise<void> => {
+    await axiosClient.delete(`/admin/majors/${majorId}/subjects/${subjectId}`);
   },
 
   // --- Users ---

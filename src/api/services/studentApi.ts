@@ -75,6 +75,10 @@ export const studentApi = {
     return await axiosClient.get('/student/registration/period');
   },
 
+  getStudentCurriculum: async () => {
+    return await axiosClient.get('/student/registration/curriculum');
+  },
+
   getAvailableClasses: async (search?: string, semesterId?: number, page = 0, size = 50) => {
     const searchQuery = search ? `&search=${encodeURIComponent(search)}` : '';
     const semQuery = semesterId ? `&semesterId=${semesterId}` : '';

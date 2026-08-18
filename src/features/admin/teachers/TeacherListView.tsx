@@ -75,7 +75,7 @@ export function TeacherListView({ triggerToast }: TeacherListViewProps) {
     {
       header: 'Thao Tác',
       accessor: (item: Teacher) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}

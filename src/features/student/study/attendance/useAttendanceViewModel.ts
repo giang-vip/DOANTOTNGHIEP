@@ -67,7 +67,8 @@ export function useAttendanceViewModel(
 
   const hasCheckedIn = (sessionId: number) => {
     return attendanceRecords.some(
-      r => Number(r.attendanceSessionId) === sessionId && (r.status === 'PRESENT' || r.status === 'present')
+      r => Number(r.attendanceSessionId) === sessionId && 
+      (r.status?.toUpperCase() === 'PRESENT' || r.status?.toUpperCase() === 'LATE')
     );
   };
 

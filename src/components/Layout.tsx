@@ -19,6 +19,7 @@ import {
   Settings,
   ShieldAlert,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   Layers,
   Power
@@ -30,6 +31,7 @@ interface NavItem {
   id: string;
   label: string;
   icon: React.ComponentType<any>;
+  children?: NavItem[];
 }
 
 interface LayoutProps {
@@ -50,6 +52,11 @@ export const Layout: React.FC<LayoutProps> = ({
   children
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+  const toggleMenu = (id: string) => {
+    setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Define navigation based on User Role
   const getNavItems = (): NavItem[] => {
@@ -58,16 +65,20 @@ export const Layout: React.FC<LayoutProps> = ({
         return [
           { id: 'dashboard', label: 'Báo cáo', icon: ShieldAlert },
           { id: 'academic-years', label: 'Quản lý Năm học', icon: Calendar },
-          { id: 'semesters', label: 'Quản lý Học kỳ', icon: Clock },
           { id: 'departments', label: 'Quản lý Khoa', icon: Settings },
-          { id: 'majors', label: 'Quản lý Ngành', icon: Layers },
           { id: 'subjects', label: 'Quản lý Môn học', icon: BookOpen },
-          { id: 'classes', label: 'Quản lý Lớp học phần', icon: Calendar },
           { id: 'registration', label: 'Cấu hình Đăng ký', icon: Power },
-          { id: 'teachers', label: 'Quản lý Giảng viên', icon: GraduationCap },
-          { id: 'students', label: 'Quản lý Sinh viên', icon: Users },
           { id: 'announcements', label: 'Thông báo & Email', icon: Megaphone },
-          { id: 'users', label: 'Tài khoản Hệ thống', icon: User }
+          {
+            id: 'hr_accounts',
+            label: 'Quản trị Nhân sự & Tài khoản',
+            icon: Users,
+            children: [
+              { id: 'students', label: 'Quản lý Sinh viên', icon: Users },
+              { id: 'teachers', label: 'Quản lý Giảng viên', icon: GraduationCap },
+              { id: 'users', label: 'Phân quyền tài khoản', icon: User }
+            ]
+          }
         ];
       case 'teacher':
         return [
@@ -132,6 +143,59 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
           {navItems.map(item => {
             const Icon = item.icon;
+            
+            // Render Submenu
+            if (item.children) {
+              const isOpen = openMenus[item.id] || false;
+              const hasActiveChild = item.children.some(child => activeTab === child.id);
+              
+              return (
+                <div key={item.id} className="mb-1">
+                  <button
+                    onClick={() => toggleMenu(item.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      hasActiveChild && !isOpen
+                        ? 'bg-slate-800 text-white'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`h-4.5 w-4.5 ${hasActiveChild && !isOpen ? 'text-white' : 'text-slate-400'}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-white' : 'text-slate-500'}`} />
+                  </button>
+                  
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-48 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                    <div className="pl-9 space-y-1">
+                      {item.children.map(child => {
+                        const ChildIcon = child.icon;
+                        const isChildActive = activeTab === child.id;
+                        return (
+                          <button
+                            key={child.id}
+                            onClick={() => {
+                              setActiveTab(child.id);
+                              setIsSidebarOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              isChildActive
+                                ? 'bg-blue-600/20 text-blue-400'
+                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <ChildIcon className={`h-4 w-4 ${isChildActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                            <span>{child.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            
+            // Regular menu item
             const isActive = activeTab === item.id;
             return (
               <button
@@ -190,7 +254,9 @@ export const Layout: React.FC<LayoutProps> = ({
             </button>
             <div>
               <h2 className="text-base font-semibold text-slate-800 capitalize">
-                {navItems.find(item => item.id === activeTab)?.label || 'Bảng điều khiển'}
+                {navItems.find(item => item.id === activeTab)?.label || 
+                 (activeTab === 'majors' ? 'Quản lý Ngành' : 
+                  activeTab === 'subjects' ? 'Quản lý Môn học' : 'Bảng điều khiển')}
               </h2>
             </div>
           </div>

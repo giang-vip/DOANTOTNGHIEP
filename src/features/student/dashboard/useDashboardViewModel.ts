@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { studentApi } from '../../../api/services/studentApi';
+import { adminApi } from '../../../api/services/adminApi';
 import { Student } from '../../../models';
 import { useStudentAcademicStats } from '../../../hooks/useStudentAcademicStats';
 
@@ -9,6 +10,10 @@ export function useDashboardViewModel(studentProfile: Student) {
   const [gradesList, setGradesList] = useState<any[]>([]);
   const [pendingAsmsCount, setPendingAsmsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+
+  // Term info state
+  const [currentSemesterName, setCurrentSemesterName] = useState<string>('Đang cập nhật');
+  const [currentYearName, setCurrentYearName] = useState<string>('Đang cập nhật');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,6 +39,24 @@ export function useDashboardViewModel(studentProfile: Student) {
         }
         setPendingAsmsCount(totalPending);
 
+        // Fetch term info
+        try {
+          const [semesters, years] = await Promise.all([
+            adminApi.getAllSemesters(),
+            adminApi.getAllAcademicYears()
+          ]);
+          const currentSem = semesters.find(s => s.isCurrent) || semesters[0];
+          if (currentSem) {
+            setCurrentSemesterName(currentSem.name);
+            const currentYear = years.find(y => String(y.id) === String(currentSem.academicYearId));
+            if (currentYear) {
+              setCurrentYearName(currentYear.code);
+            }
+          }
+        } catch (termErr) {
+          console.error('Không thể lấy thông tin kỳ học hiện tại:', termErr);
+        }
+
       } catch (err) {
         console.error('Lỗi khi tải dữ liệu dashboard:', err);
       } finally {
@@ -55,6 +78,8 @@ export function useDashboardViewModel(studentProfile: Student) {
     enrolledClassesCount: classesList.length,
     pendingAsmsCount,
     announcements: announcementsList,
-    loading
+    loading,
+    currentSemesterName,
+    currentYearName
   };
 }

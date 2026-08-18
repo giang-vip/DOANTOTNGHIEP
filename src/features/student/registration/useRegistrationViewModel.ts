@@ -5,44 +5,74 @@ import { Student, ClassSection } from '../../../models';
 export function useRegistrationViewModel(studentProfile: Student) {
   const [registrationPeriod, setRegistrationPeriod] = useState<any>({ isOpen: false });
   const [availableClasses, setAvailableClasses] = useState<ClassSection[]>([]);
+  const [curriculum, setCurriculum] = useState<any[]>([]);
   const [enrolledClasses, setEnrolledClasses] = useState<ClassSection[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [semesterFilter, setSemesterFilter] = useState<number | 'ALL'>('ALL');
+  const [subjectTypeFilter, setSubjectTypeFilter] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Fake list of all subjects in the major for demonstration since BE lacks /student/subjects API
-  const allMajorSubjectsMock = [
-    { id: 101, name: 'Toán cao cấp 1' },
-    { id: 102, name: 'Vật lý đại cương' },
-    { id: 103, name: 'Lập trình C++' },
-    { id: 104, name: 'Lập trình Java' },
-    { id: 105, name: 'Cấu trúc dữ liệu và giải thuật' },
-    { id: 106, name: 'Cơ sở dữ liệu' },
-    { id: 107, name: 'Mạng máy tính' },
-    { id: 108, name: 'Phát triển ứng dụng Web' },
-    { id: 109, name: 'An toàn thông tin' },
-    { id: 110, name: 'Đồ án tốt nghiệp' }
-  ];
+  const getFilteredCurriculum = () => {
+    let filtered = availableClasses;
+    
+    // B1. Khởi tạo danh sách môn học từ Khung chương trình (Curriculum)
+    const subjectsMap: Record<number, any> = {};
+    
+    curriculum.forEach(subj => {
+      subjectsMap[subj.subjectId] = {
+        subjectId: subj.subjectId,
+        subjectCode: subj.subjectCode,
+        subjectName: subj.subjectName,
+        credits: subj.credits,
+        semesterIndex: subj.semesterIndex || 1,
+        type: subj.subjectType || 'COMPULSORY',
+        classes: []
+      };
+    });
 
-  // Group classes by subject, ensuring ALL major subjects are shown
-  const groupedSubjects = allMajorSubjectsMock.map(subject => {
-    const classes = availableClasses.filter(c => c.subjectName === subject.name || c.subjectId === subject.id);
-    return {
-      subjectId: subject.id,
-      subjectName: subject.name,
-      classes: classes
-    };
-  });
+    // B2. Ánh xạ các lớp học đang mở vào danh sách môn học (chỉ map vào những môn có trong Khung chương trình)
+    filtered.forEach(cls => {
+      if (subjectsMap[cls.subjectId]) {
+        subjectsMap[cls.subjectId].classes.push(cls);
+      }
+    });
 
-  // Include any other subjects that came from API but aren't in mock (just in case)
-  availableClasses.forEach(cls => {
-    if (!groupedSubjects.find(g => g.subjectId === cls.subjectId)) {
-      groupedSubjects.push({
-        subjectId: cls.subjectId,
-        subjectName: cls.subjectName || 'Không xác định',
-        classes: availableClasses.filter(c => c.subjectId === cls.subjectId)
-      });
+    // B3. Convert sang Flat Array
+    let flatList = Object.values(subjectsMap);
+
+    // B4. Lọc
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      flatList = flatList.filter(subj => 
+        subj.subjectName?.toLowerCase().includes(lowerSearch) || 
+        subj.subjectCode?.toLowerCase().includes(lowerSearch) ||
+        subj.classes.some((c: any) => c.sectionCode.toLowerCase().includes(lowerSearch))
+      );
     }
-  });
+
+    if (subjectTypeFilter) {
+      flatList = flatList.filter(subj => subj.type === subjectTypeFilter);
+    }
+
+    if (semesterFilter !== 'ALL') {
+      flatList = flatList.filter(subj => subj.semesterIndex === semesterFilter);
+    }
+
+    // B5. Sắp xếp theo học kỳ tăng dần, rồi đến loại môn, rồi đến tên môn
+    flatList.sort((a, b) => {
+      if (a.semesterIndex !== b.semesterIndex) {
+        return a.semesterIndex - b.semesterIndex;
+      }
+      if (a.type !== b.type) {
+        return a.type.localeCompare(b.type);
+      }
+      return (a.subjectName || '').localeCompare(b.subjectName || '');
+    });
+
+    return flatList;
+  };
+
+  const filteredCurriculum = getFilteredCurriculum();
 
   const isRegistrationWindowOpen = () => {
     if (!registrationPeriod.isOpen) return false;
@@ -74,17 +104,22 @@ export function useRegistrationViewModel(studentProfile: Student) {
       }
       setRegistrationPeriod(currentPeriod);
 
-      // 2. Fetch available classes matching search
-      const availableRes = await studentApi.getAvailableClasses(searchTerm, undefined, 0, 100);
+      // 2. Fetch student curriculum
+      let currList: any[] = [];
+      try {
+        const currRes = await studentApi.getStudentCurriculum();
+        currList = (currRes as any) || [];
+        setCurriculum(currList);
+      } catch (err) {
+        console.warn('Lỗi lấy khung chương trình:', err);
+      }
+
+      // 3. Fetch available classes matching search
+      const availableRes = await studentApi.getAvailableClasses('', undefined, 0, 100);
       let availList = (availableRes as any)?.content || [];
       
-      // Strict filtering by Major and Semester
+      // Strict filtering by Semester (Major/Dept is already filtered by backend)
       availList = availList.filter((cls: ClassSection) => {
-        // Must belong to student's major
-        if (studentProfile.majorId && cls.majorId && cls.majorId !== studentProfile.majorId) {
-          return false;
-        }
-        // Must belong to the current registration semester (if known)
         if (currentPeriod.semesterId && cls.semesterId) {
           if (cls.semesterId !== currentPeriod.semesterId) return false;
         }
@@ -93,7 +128,7 @@ export function useRegistrationViewModel(studentProfile: Student) {
       
       setAvailableClasses(availList);
 
-      // 3. Fetch enrolled classes
+      // 4. Fetch enrolled classes
       const enrolledRes = await studentApi.getStudentClasses(0, 100);
       let enrolledList = (enrolledRes as any)?.content || [];
       // Lọc danh sách đăng ký: Chỉ hiển thị môn của kỳ đăng ký hiện tại
@@ -111,14 +146,12 @@ export function useRegistrationViewModel(studentProfile: Student) {
 
   useEffect(() => {
     loadData();
-  }, [searchTerm]);
+  }, []);
 
-  // Schedule conflict detection (Local validation for smooth UX, backed by BE checks)
   const checkScheduleConflict = (newCls: ClassSection): { conflict: boolean; message?: string } => {
     const conflict = enrolledClasses.find(c => {
       if (c.weekday !== newCls.weekday) return false;
       
-      // Date range overlap check
       if (c.startDate && c.endDate && newCls.startDate && newCls.endDate) {
         const start1 = new Date(c.startDate).getTime();
         const end1 = new Date(c.endDate).getTime();
@@ -127,10 +160,9 @@ export function useRegistrationViewModel(studentProfile: Student) {
         
         const maxStart = Math.max(start1, start2);
         const minEnd = Math.min(end1, end2);
-        if (maxStart > minEnd) return false; // No overlap in dates
+        if (maxStart > minEnd) return false; 
       }
 
-      // Time slot overlap check
       if (c.startTime && c.endTime && newCls.startTime && newCls.endTime) {
         const timeToSec = (tStr: string) => {
           const [h, m] = tStr.split(':').map(Number);
@@ -143,7 +175,7 @@ export function useRegistrationViewModel(studentProfile: Student) {
         
         const maxStart = Math.max(start1, start2);
         const minEnd = Math.min(end1, end2);
-        return maxStart < minEnd; // Overlap in time slots
+        return maxStart < minEnd; 
       }
 
       return false;
@@ -165,20 +197,17 @@ export function useRegistrationViewModel(studentProfile: Student) {
       return;
     }
 
-    // Capacity Check
     const maxCap = cls.capacity || 40;
     if (cls.studentIds && cls.studentIds.length >= maxCap) {
       onError('Lớp học phần đã đạt sĩ số tối đa!');
       return;
     }
 
-    // Major membership check
     if (studentProfile.majorId && cls.majorId && studentProfile.majorId !== cls.majorId) {
       onError('Không thể đăng ký lớp này vì nó không thuộc ngành của bạn.');
       return;
     }
 
-    // Schedule conflict Check
     const scheduleCheck = checkScheduleConflict(cls);
     if (scheduleCheck.conflict) {
       onError(scheduleCheck.message || '');
@@ -192,7 +221,7 @@ export function useRegistrationViewModel(studentProfile: Student) {
       onSuccess(`Đăng ký thành công lớp học phần "${cls.subjectName}"!`);
     } catch (err: any) {
       console.error('Lỗi đăng ký học phần:', err);
-      onError(err.response?.data?.message || 'Có lỗi xảy ra khi đăng ký.');
+      onError(err.message || err.response?.data?.message || 'Có lỗi xảy ra khi đăng ký.');
     }
   };
 
@@ -214,13 +243,14 @@ export function useRegistrationViewModel(studentProfile: Student) {
       onSuccess(`Đã rút đăng ký học phần "${cls.subjectName}" thành công.`);
     } catch (err: any) {
       console.error('Lỗi hủy đăng ký học phần:', err);
-      onError(err.response?.data?.message || 'Có lỗi xảy ra khi hủy đăng ký.');
+      onError(err.message || err.response?.data?.message || 'Có lỗi xảy ra khi hủy đăng ký.');
     }
   };
 
   return {
     registrationPeriod,
     isWindowActive,
+    filteredCurriculum,
     availableClasses,
     enrolledClasses,
     searchTerm,
@@ -229,6 +259,9 @@ export function useRegistrationViewModel(studentProfile: Student) {
     handleDrop,
     checkScheduleConflict,
     loading,
-    groupedSubjects
+    setSemesterFilter,
+    semesterFilter,
+    subjectTypeFilter,
+    setSubjectTypeFilter
   };
 }

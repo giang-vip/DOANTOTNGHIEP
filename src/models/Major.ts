@@ -5,7 +5,9 @@ export interface Major {
   code: string;
   name: string;
   description?: string;
+  totalCredits?: number;
   status?: string;
+  subjectCount?: number;
   createdAt?: string;
 }
 
@@ -14,5 +16,6 @@ export interface MajorRequest {
   code: string;
   name: string;
   description?: string;
+  totalCredits?: number;
   status?: string;
 }

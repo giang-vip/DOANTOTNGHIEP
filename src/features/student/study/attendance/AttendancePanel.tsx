@@ -85,6 +85,8 @@ export function AttendancePanel({ selectedClass, triggerToast }: AttendancePanel
                 {classSessions.map((session, index) => {
                   const record = attendanceRecords.find(r => Number(r.sessionId) === Number(session.id));
                   const isPresent = record?.status?.toLowerCase() === 'present';
+                  const isLate = record?.status?.toLowerCase() === 'late';
+                  // Default to absent if no record or other status
 
                   return (
                     <tr key={session.id} className="hover:bg-slate-50/50 transition-colors">
@@ -100,6 +102,10 @@ export function AttendancePanel({ selectedClass, triggerToast }: AttendancePanel
                           {isPresent ? (
                             <Badge variant="success" className="gap-1 px-2 py-0.5">
                               <CheckCircle2 className="h-3 w-3" /> Có mặt
+                            </Badge>
+                          ) : isLate ? (
+                            <Badge variant="warning" className="gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border-amber-200">
+                              <AlertCircle className="h-3 w-3" /> Đi muộn
                             </Badge>
                           ) : (
                             <Badge variant="danger" className="gap-1 px-2 py-0.5 bg-rose-50 text-rose-600 border-rose-200">

@@ -1,15 +1,16 @@
 import React from 'react';
 import { useSubjectListViewModel } from './useSubjectListViewModel';
-import { Card, Table, Modal, FormInput, Pagination } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Card, Table, Modal, FormInput, Pagination, Badge } from '../../../components/UI';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, ChevronLeft, BookOpen } from 'lucide-react';
 import { Subject } from '../../../models/Subject';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface SubjectListViewProps {
+  onTabChange?: (tab: string) => void;
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function SubjectListView({ triggerToast }: SubjectListViewProps) {
+export function SubjectListView({ onTabChange, triggerToast }: SubjectListViewProps) {
   const {
     subjects,
     departments,
@@ -31,7 +32,11 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
     openEditModal,
     handleInputChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+    setSearchParams,
+    departmentIdFromUrl
   } = useSubjectListViewModel();
 
   const handleSaveAction = () => {
@@ -53,12 +58,14 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
     },
     {
       header: 'Khoa Quản Lý',
-      accessor: (item: Subject) => <span className="text-sm text-slate-600">{item.departmentName}</span>
+      accessor: (item: Subject) => (
+        <span className="text-sm font-medium text-slate-800">{item.departmentName || '---'}</span>
+      )
     },
     {
       header: 'Thao Tác',
       accessor: (item: Subject) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
@@ -83,17 +90,23 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Môn Học</h2>
-          <p className="text-xs text-slate-500">Xem và hiệu chỉnh danh mục các môn học</p>
+          <div className="flex flex-col gap-1 mb-2">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1">
+              Quản Lý Môn Học
+            </h2>
+          </div>
+          <p className="text-xs text-slate-500">Xem và hiệu chỉnh danh mục các môn học toàn trường</p>
         </div>
-        <button
-          onClick={openAddModal}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-70"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Thêm Môn Học
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={openAddModal}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-70"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Thêm Môn Học
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -119,6 +132,19 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
         </div>
+        {!departmentIdFromUrl && (
+          <div className="w-full sm:w-1/4">
+            <SearchableSelect
+              name="departmentFilter"
+              value={selectedDepartmentId}
+              onChange={(val) => setSelectedDepartmentId(val ? Number(val) : undefined)}
+              disabled={isLoading}
+              options={departments.map(d => ({ value: d.id!, label: d.name }))}
+              placeholder="-- Tất cả Khoa --"
+              allowClear
+            />
+          </div>
+        )}
       </Card>
 
       <Card className="relative min-h-[300px] flex flex-col">
@@ -197,19 +223,19 @@ export function SubjectListView({ triggerToast }: SubjectListViewProps) {
             error={errors.name}
           />
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
-            <SearchableSelect
-              name="departmentId"
-              value={formData.departmentId}
-              onChange={(val) => handleInputChange({ target: { name: 'departmentId', value: Number(val) } } as any)}
-              disabled={isLoading}
-              options={departments.map(dept => ({ value: dept.id!, label: dept.name }))}
-              placeholder="-- Chọn khoa --"
-              error={!!errors.departmentId}
-            />
-            {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
+              <SearchableSelect
+                name="departmentId"
+                value={formData.departmentId}
+                onChange={(val) => handleInputChange({ target: { name: 'departmentId', value: Number(val) } } as any)}
+                disabled={isLoading}
+                options={departments.map(dept => ({ value: dept.id!, label: dept.name }))}
+                placeholder="-- Chọn khoa --"
+                error={!!errors.departmentId}
+              />
+              {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
+            </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Mô Tả (Tùy chọn)</label>

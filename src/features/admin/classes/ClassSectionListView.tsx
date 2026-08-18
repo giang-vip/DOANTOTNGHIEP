@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useClassSectionListViewModel } from './useClassSectionListViewModel';
 import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, XCircle, BookOpen, ChevronLeft } from 'lucide-react';
 import { ClassSection } from '../../../models/ClassSection';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface ClassSectionListViewProps {
+  onTabChange?: (tab: string) => void;
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps) {
+export function ClassSectionListView({ onTabChange, triggerToast }: ClassSectionListViewProps) {
   const {
     classSections,
     subjects,
@@ -23,6 +24,8 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
     setSearchTerm,
     selectedSemesterId,
     setSelectedSemesterId,
+    semesterIdFromUrl,
+    clearSemesterFilter,
     selectedDepartmentId,
     setSelectedDepartmentId,
     selectedMajorId,
@@ -44,8 +47,15 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
     handleInputChange,
     handleSelectChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    filteredSubjects,
+    filteredMajorsForFilter
   } = useClassSectionListViewModel();
+
+  const filteredMajors = useMemo(() => {
+    if (!formData.departmentId) return [];
+    return majors.filter(m => m.departmentId === formData.departmentId);
+  }, [majors, formData.departmentId]);
 
   const handleSaveAction = () => {
     handleSave((msg) => triggerToast(msg, 'success'));
@@ -82,6 +92,14 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
       )
     },
     {
+      header: 'Sĩ Số',
+      accessor: (item: ClassSection) => (
+        <span className="text-sm font-semibold text-slate-700">
+          {item.enrolledCount || 0} / {item.capacity}
+        </span>
+      )
+    },
+    {
       header: 'Trạng Thái',
       accessor: (item: ClassSection) => (
         <Badge variant={item.status === 'ACTIVE' ? 'success' : 'danger'}>
@@ -92,7 +110,7 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
     {
       header: 'Thao Tác',
       accessor: (item: ClassSection) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
@@ -113,11 +131,28 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
     }
   ];
 
+  const currentSemester = semesterIdFromUrl ? semesters?.find(s => s.id === semesterIdFromUrl) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Lớp Học Phần</h2>
+          <div className="flex flex-col gap-1 mb-2">
+            {semesterIdFromUrl && (
+              <button
+                onClick={() => {
+                  clearSemesterFilter();
+                  if (onTabChange) onTabChange('semesters');
+                }}
+                className="w-fit px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Quay lại chọn Kỳ
+              </button>
+            )}
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1">
+              Quản Lý Lớp Học Phần {currentSemester ? `(${currentSemester.name})` : ''}
+            </h2>
+          </div>
           <p className="text-xs text-slate-500">Xem và hiệu chỉnh danh mục các lớp học phần</p>
         </div>
         <button
@@ -140,6 +175,19 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
         </div>
       )}
 
+      {semesterIdFromUrl && (
+        <Card className="p-4 bg-indigo-50/50 border border-indigo-100 flex items-center gap-3">
+          <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+            <BookOpen className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm text-indigo-900 font-medium">
+              Có tổng cộng <strong className="text-indigo-700 text-base">{totalElements}</strong> lớp học phần được mở trong kỳ này.
+            </p>
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
         <div className="relative w-full">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -149,22 +197,11 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm theo mã lớp học phần..."
+            placeholder="Tìm theo mã lớp hoặc tên môn học..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
         </div>
-        
-        <div className="w-full">
-          <SearchableSelect
-            name="semesterFilter"
-            value={selectedSemesterId}
-            onChange={(val) => setSelectedSemesterId(val ? Number(val) : undefined)}
-            disabled={isLoading}
-            options={semesters.map(s => ({ value: s.id!, label: s.name }))}
-            placeholder="-- Tất cả học kỳ --"
-            allowClear
-          />
-        </div>
+
 
         <div className="w-full">
           <SearchableSelect
@@ -174,6 +211,18 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
             disabled={isLoading}
             options={departments.map(d => ({ value: d.id!, label: d.name }))}
             placeholder="-- Tất cả Khoa --"
+            allowClear
+          />
+        </div>
+
+        <div className="w-full">
+          <SearchableSelect
+            name="majorFilter"
+            value={selectedMajorId}
+            onChange={(val) => setSelectedMajorId(val ? Number(val) : undefined)}
+            disabled={isLoading}
+            options={filteredMajorsForFilter.map(m => ({ value: m.id!, label: m.name }))}
+            placeholder="-- Tất cả Ngành --"
             allowClear
           />
         </div>
@@ -224,7 +273,7 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
         }
       >
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-          
+
           <div className="grid grid-cols-2 gap-4">
             <FormInput
               label="Mã Lớp Học Phần"
@@ -235,7 +284,7 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
               placeholder="VD: INT1001_1"
               error={errors.sectionCode}
             />
-            
+
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Môn Học</label>
               <SearchableSelect
@@ -243,7 +292,7 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
                 value={formData.subjectId}
                 onChange={(val) => handleSelectChange('subjectId', val)}
                 disabled={isLoading}
-                options={subjects.map(s => ({ value: s.id!, label: s.name }))}
+                options={filteredSubjects.map(s => ({ value: s.id!, label: `${s.code} - ${s.name}` }))}
                 placeholder="-- Chọn môn học --"
                 error={!!errors.subjectId}
               />
@@ -270,11 +319,15 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa</label>
               <SearchableSelect
                 name="departmentId"
-                value={formData.departmentId || 0}
-                onChange={(val) => handleSelectChange('departmentId', val)}
+                value={formData.departmentId || ''}
+                onChange={(val) => {
+                  handleSelectChange('departmentId', val ? Number(val) : undefined);
+                  handleSelectChange('majorId', undefined);
+                }}
                 disabled={isLoading}
                 options={departments.map(d => ({ value: d.id!, label: d.name }))}
-                placeholder="-- Chọn khoa --"
+                placeholder="-- Tất cả các Khoa (Môn dùng chung toàn trường) --"
+                allowClear
                 error={!!errors.departmentId}
               />
               {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
@@ -286,26 +339,29 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Ngành</label>
               <SearchableSelect
                 name="majorId"
-                value={formData.majorId || 0}
-                onChange={(val) => handleSelectChange('majorId', val)}
-                disabled={isLoading}
-                options={majors.map(m => ({ value: m.id!, label: m.name }))}
-                placeholder="-- Chọn ngành (Tùy chọn) --"
+                value={formData.majorId || ''}
+                onChange={(val) => handleSelectChange('majorId', val ? Number(val) : undefined)}
+                disabled={isLoading || !formData.departmentId}
+                options={filteredMajors.map(m => ({ value: m.id!, label: m.name }))}
+                placeholder={formData.departmentId ? "-- Chọn ngành (Tùy chọn) --" : "-- Vui lòng chọn Khoa trước --"}
+                allowClear
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Học Kỳ</label>
-              <SearchableSelect
-                name="semesterId"
-                value={formData.semesterId}
-                onChange={(val) => handleSelectChange('semesterId', val)}
-                disabled={isLoading}
-                options={semesters.map(s => ({ value: s.id!, label: s.name }))}
-                placeholder="-- Chọn học kỳ --"
-                error={!!errors.semesterId}
-              />
-              {errors.semesterId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.semesterId}</p>}
-            </div>
+            {!semesterIdFromUrl && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Học Kỳ</label>
+                <SearchableSelect
+                  name="semesterId"
+                  value={formData.semesterId}
+                  onChange={(val) => handleSelectChange('semesterId', val)}
+                  disabled={isLoading}
+                  options={semesters.map(s => ({ value: s.id!, label: s.name }))}
+                  placeholder="-- Chọn học kỳ --"
+                  error={!!errors.semesterId}
+                />
+                {errors.semesterId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.semesterId}</p>}
+              </div>
+            )}
 
             <FormInput
               label="Sĩ Số Tối Đa"
@@ -347,11 +403,11 @@ export function ClassSectionListView({ triggerToast }: ClassSectionListViewProps
                 value={formData.weekday}
                 onChange={(val) => handleInputChange({ target: { name: 'weekday', value: Number(val) } } as any)}
                 disabled={isLoading}
-                options={[2,3,4,5,6,7,8].map(day => ({ value: day, label: day === 8 ? 'Chủ nhật' : `Thứ ${day}` }))}
+                options={[2, 3, 4, 5, 6, 7, 8].map(day => ({ value: day, label: day === 8 ? 'Chủ nhật' : `Thứ ${day}` }))}
                 placeholder="-- Chọn thứ --"
               />
             </div>
-            
+
             <FormInput
               label="Giờ Bắt Đầu"
               name="startTime"

@@ -37,7 +37,10 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
     selectedSemester,
     setSelectedSemester,
     stats,
-    semesterChartData
+    currentTermIndex,
+    currentTermText,
+    semesterChartData,
+    loading
   } = useAcademicProgressViewModel(studentProfile);
 
   const [activeDetailClass, setActiveDetailClass] = useState<SubjectGradeInfo | null>(null);
@@ -100,12 +103,12 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
           <div className="flex-1 min-w-0">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tín Chỉ Tích Lũy</span>
             <span className="text-2xl font-black text-slate-800 leading-none block mt-1">
-              {stats.totalCredits} <span className="text-xs font-normal text-slate-400">tín chỉ</span>
+              {stats.totalCredits} <span className="text-sm font-medium text-slate-400">/ <span className="text-base font-bold text-slate-400">{studentProfile.majorTotalCredits || '140'}</span> tín chỉ</span>
             </span>
             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
               <div 
                 className="bg-emerald-500 h-1.5 rounded-full transition-all duration-550" 
-                style={{ width: `${Math.min(100, (stats.totalCredits / 120) * 100)}%` }}
+                style={{ width: `${Math.min(100, (stats.totalCredits / (studentProfile.majorTotalCredits || 140)) * 100)}%` }}
               ></div>
             </div>
           </div>
@@ -226,10 +229,11 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
                 </span>
               </div>
               <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200/50">
-                <span className="font-medium">Đang trong tiến trình học:</span>
-                <span className="font-bold text-amber-500 flex items-center gap-1">
-                  <AlertCircle className="h-3.5 w-3.5 animate-pulse" />
-                  {stats.totalCount - stats.completedCount} môn
+                <span className="font-medium">Học kỳ hiện tại:</span>
+                <span className="font-bold text-amber-500 flex items-center gap-1" title={currentTermText}>
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {currentTermIndex ? `Kỳ ${currentTermIndex}` : 'Đang cập nhật'} 
+                  <span className="text-[9px] text-slate-400 ml-1 font-normal hidden sm:inline">{currentTermText}</span>
                 </span>
               </div>
             </div>

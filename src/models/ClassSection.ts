@@ -6,6 +6,8 @@ export interface ClassSection {
   majorName?: string;
   subjectId: number;
   subjectName?: string;
+  subjectSemesterIndex?: number;
+  subjectType?: string;
   teacherId: number;
   teacherName?: string;
   semesterId: number;

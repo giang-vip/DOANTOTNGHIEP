@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { studentApi } from '../../../api/services/studentApi';
+import { adminApi } from '../../../api/services/adminApi';
 import { Student } from '../../../models';
 import {
   convertToLetterGrade,
@@ -36,6 +37,8 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
   const [gradesList, setGradesList] = useState<any[]>([]);
   const [classesList, setClassesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTermIndex, setCurrentTermIndex] = useState<number | null>(null);
+  const [currentTermText, setCurrentTermText] = useState<string>('Đang cập nhật');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,6 +51,36 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
         // Load classes list to get custom weights
         const classesRes = await studentApi.getStudentClasses(0, 100);
         setClassesList((classesRes as any)?.content || []);
+        
+        // Fetch term info
+        try {
+          const [semesters, years] = await Promise.all([
+            adminApi.getAllSemesters(),
+            adminApi.getAllAcademicYears()
+          ]);
+          const currentSem = semesters.find(s => s.isCurrent) || semesters[0];
+          if (currentSem) {
+            const currentYear = years.find(y => String(y.id) === String(currentSem.academicYearId));
+            if (currentYear && studentProfile.entryStartYear) {
+              const currentStartYear = currentYear.startYear || parseInt(currentYear.code.substring(0, 4));
+              const entryStartYear = studentProfile.entryStartYear;
+              const diffYears = currentStartYear - entryStartYear;
+              
+              let semOffset = 1;
+              if (currentSem.name.toLowerCase().includes('2') || currentSem.name.toLowerCase().includes('ii')) {
+                 semOffset = 2;
+              } else if (currentSem.name.toLowerCase().includes('3') || currentSem.name.toLowerCase().includes('hè')) {
+                 semOffset = 3;
+              }
+              
+              const termIndex = (diffYears * 2) + semOffset;
+              setCurrentTermIndex(termIndex > 0 ? termIndex : 1);
+              setCurrentTermText(`(Năm ${diffYears + 1}, ${currentSem.name})`);
+            }
+          }
+        } catch (termErr) {
+          console.error('Không thể lấy thông tin kỳ học hiện tại:', termErr);
+        }
       } catch (err) {
         console.error('Lỗi khi tải bảng điểm:', err);
       } finally {
@@ -199,6 +232,8 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
     selectedSemester,
     setSelectedSemester,
     stats,
+    currentTermIndex,
+    currentTermText,
     semesterChartData,
     loading
   };

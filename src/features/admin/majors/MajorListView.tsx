@@ -1,15 +1,16 @@
 import React from 'react';
 import { useMajorListViewModel } from './useMajorListViewModel';
 import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, BookOpen, ChevronLeft } from 'lucide-react';
 import { Major } from '../../../models/Major';
 import { SearchableSelect } from '../../../components/SearchableSelect';
 
 interface MajorListViewProps {
+  onTabChange?: (tab: string) => void;
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function MajorListView({ triggerToast }: MajorListViewProps) {
+export function MajorListView({ onTabChange, triggerToast }: MajorListViewProps) {
   const {
     majors,
     departments,
@@ -33,7 +34,9 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
     openEditModal,
     handleInputChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    setSearchParams,
+    departmentIdFromUrl
   } = useMajorListViewModel();
 
   const handleSaveAction = () => {
@@ -54,6 +57,14 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
       accessor: (item: Major) => <span className="text-sm text-slate-600">{item.departmentName}</span>
     },
     {
+      header: 'Tổng Tín Chỉ',
+      accessor: (item: Major) => <span className="text-sm font-semibold text-slate-800">{item.totalCredits || '---'}</span>
+    },
+    {
+      header: 'Số Môn Học',
+      accessor: (item: Major) => <span className="text-sm font-bold text-blue-600">{item.subjectCount || 0}</span>
+    },
+    {
       header: 'Trạng Thái',
       accessor: (item: Major) => (
         <Badge variant={item.status === 'ACTIVE' ? 'success' : 'danger'}>
@@ -64,7 +75,21 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
     {
       header: 'Thao Tác',
       accessor: (item: Major) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => {
+              if (onTabChange) {
+                const params: Record<string, string> = { majorId: item.id!.toString() };
+                if (departmentIdFromUrl) params.departmentId = departmentIdFromUrl;
+                setSearchParams(params);
+                onTabChange('major-subjects');
+              }
+            }}
+            title="Xem Môn Học"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+          >
+            <BookOpen className="h-4 w-4" />
+          </button>
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
@@ -85,21 +110,40 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
     }
   ];
 
+  const currentDept = departmentIdFromUrl ? departments.find(d => d.id === Number(departmentIdFromUrl)) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Ngành Học</h2>
+          <div className="flex flex-col gap-1 mb-2">
+            {departmentIdFromUrl && (
+              <button
+                onClick={() => {
+                  setSearchParams({});
+                  if (onTabChange) onTabChange('departments');
+                }}
+                className="w-fit px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Quay lại chọn Khoa
+              </button>
+            )}
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1">
+              Quản Lý Ngành Học {currentDept ? `(Khoa ${currentDept.name})` : ''}
+            </h2>
+          </div>
           <p className="text-xs text-slate-500">Xem và hiệu chỉnh danh mục các ngành đào tạo</p>
         </div>
-        <button
-          onClick={openAddModal}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-70"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          Thêm Ngành Học
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={openAddModal}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-70"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Thêm Ngành Học
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -125,17 +169,19 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
         </div>
-        <div className="w-full sm:w-1/3">
-          <SearchableSelect
-            name="departmentFilter"
-            value={selectedDepartmentId}
-            onChange={(val) => setSelectedDepartmentId(val ? Number(val) : undefined)}
-            disabled={isLoading}
-            options={departments.map(d => ({ value: d.id!, label: d.name }))}
-            placeholder="-- Tất cả Khoa --"
-            allowClear
-          />
-        </div>
+        {!departmentIdFromUrl && (
+          <div className="w-full sm:w-1/3">
+            <SearchableSelect
+              name="departmentFilter"
+              value={selectedDepartmentId}
+              onChange={(val) => setSelectedDepartmentId(val ? Number(val) : undefined)}
+              disabled={isLoading}
+              options={departments.map(d => ({ value: d.id!, label: d.name }))}
+              placeholder="-- Tất cả Khoa --"
+              allowClear
+            />
+          </div>
+        )}
       </Card>
 
       <Card className="relative min-h-[300px] flex flex-col">
@@ -218,19 +264,31 @@ export function MajorListView({ triggerToast }: MajorListViewProps) {
             error={errors.name}
           />
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
-            <SearchableSelect
-              name="departmentId"
-              value={formData.departmentId}
-              onChange={(val) => handleInputChange({ target: { name: 'departmentId', value: Number(val) } } as any)}
-              disabled={isLoading}
-              options={departments.map(dept => ({ value: dept.id!, label: dept.name }))}
-              placeholder="-- Chọn khoa --"
-              error={!!errors.departmentId}
-            />
-            {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
-          </div>
+          {!departmentIdFromUrl && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Khoa Quản Lý</label>
+              <SearchableSelect
+                name="departmentId"
+                value={formData.departmentId}
+                onChange={(val) => handleInputChange({ target: { name: 'departmentId', value: Number(val) } } as any)}
+                disabled={isLoading}
+                options={departments.map(dept => ({ value: dept.id!, label: dept.name }))}
+                placeholder="-- Chọn khoa --"
+                error={!!errors.departmentId}
+              />
+              {errors.departmentId && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.departmentId}</p>}
+            </div>
+          )}
+
+          <FormInput
+            label="Tổng Số Tín Chỉ"
+            name="totalCredits"
+            type="number"
+            value={formData.totalCredits}
+            onChange={handleInputChange}
+            disabled={isLoading}
+            placeholder="VD: 120"
+          />
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Mô Tả (Tùy chọn)</label>

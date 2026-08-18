@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
 import { Subject, SubjectRequest } from '../../../models/Subject';
 import { Department } from '../../../models/Department';
+import { Major } from '../../../models/Major';
+import { useSearchParams } from 'react-router-dom';
 
 export function useSubjectListViewModel() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [majors, setMajors] = useState<Major[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +30,19 @@ export function useSubjectListViewModel() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const departmentIdFromUrl = searchParams.get('departmentId');
+  
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>(
+    departmentIdFromUrl ? Number(departmentIdFromUrl) : undefined
+  );
+
+  // Sync state when URL changes
+  useEffect(() => {
+    if (departmentIdFromUrl) setSelectedDepartmentId(Number(departmentIdFromUrl));
+    else setSelectedDepartmentId(undefined);
+  }, [departmentIdFromUrl]);
 
   const fetchOptions = async () => {
     try {
@@ -37,18 +53,26 @@ export function useSubjectListViewModel() {
     }
   };
 
+  const fetchIdRef = React.useRef(0);
+
   const fetchSubjects = async () => {
+    const fetchId = ++fetchIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
-      const response = await adminApi.getAllSubjects(page, pageSize, debouncedSearch);
+      const response = await adminApi.getAllSubjects(page, pageSize, debouncedSearch, selectedDepartmentId);
+      if (fetchId !== fetchIdRef.current) return;
+
       setSubjects(response.content || []);
       setTotalPages(response.totalPages || 0);
       setTotalElements(response.totalElements || 0);
     } catch (err: any) {
+      if (fetchId !== fetchIdRef.current) return;
       setError(err.message || 'Lỗi khi tải dữ liệu môn học');
     } finally {
-      setIsLoading(false);
+      if (fetchId === fetchIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -65,9 +89,14 @@ export function useSubjectListViewModel() {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [selectedDepartmentId]);
+
   useEffect(() => {
     fetchSubjects();
-  }, [page, pageSize, debouncedSearch]);
+  }, [page, pageSize, debouncedSearch, selectedDepartmentId]);
 
   const openAddModal = () => {
     setEditingItem(null);
@@ -75,7 +104,7 @@ export function useSubjectListViewModel() {
       code: '', 
       name: '', 
       credits: 3, 
-      departmentId: departments.length > 0 ? departments[0].id : 0,
+      departmentId: selectedDepartmentId || (departments.length > 0 ? departments[0].id : 0),
       description: ''
     });
     setErrors({});
@@ -172,6 +201,10 @@ export function useSubjectListViewModel() {
     openEditModal,
     handleInputChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    selectedDepartmentId,
+    setSelectedDepartmentId,
+    setSearchParams,
+    departmentIdFromUrl
   };
 }

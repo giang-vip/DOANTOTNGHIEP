@@ -1,14 +1,15 @@
 import React from 'react';
 import { useDepartmentListViewModel } from './useDepartmentListViewModel';
 import { Card, Table, Modal, FormInput } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, BookOpen } from 'lucide-react';
 import { Department } from '../../../models/Department';
 
 interface DepartmentListViewProps {
+  onTabChange?: (tab: string) => void;
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function DepartmentListView({ triggerToast }: DepartmentListViewProps) {
+export function DepartmentListView({ onTabChange, triggerToast }: DepartmentListViewProps) {
   const {
     departments,
     isLoading,
@@ -24,7 +25,8 @@ export function DepartmentListView({ triggerToast }: DepartmentListViewProps) {
     openEditModal,
     handleInputChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    setSearchParams
   } = useDepartmentListViewModel();
 
   const handleSaveAction = () => {
@@ -47,7 +49,19 @@ export function DepartmentListView({ triggerToast }: DepartmentListViewProps) {
     {
       header: 'Thao Tác',
       accessor: (dept: Department) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => {
+              if (onTabChange) {
+                setSearchParams({ departmentId: dept.id!.toString() });
+                onTabChange('majors');
+              }
+            }}
+            title="Xem Ngành Học"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+          >
+            <BookOpen className="h-4 w-4" />
+          </button>
           <button
             onClick={() => openEditModal(dept)}
             disabled={isLoading}

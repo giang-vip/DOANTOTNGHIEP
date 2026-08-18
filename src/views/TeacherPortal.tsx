@@ -30,7 +30,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   switch (activeTab) {
     case 'dashboard':
-      return <MyClassesView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
+      return <MyClassesView teacherId={String(teacherProfile.id || '')} teacherName={teacherProfile.fullName || teacherProfile.name} triggerToast={handleToast} />;
     case 'attendance':
       return <AttendanceView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
     case 'materials':
@@ -42,6 +42,6 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     case 'profile':
       return <ProfileView teacherProfile={teacherProfile} triggerToast={handleToast} />;
     default:
-      return <MyClassesView teacherId={String(teacherProfile.id || '')} triggerToast={handleToast} />;
+      return <MyClassesView teacherId={String(teacherProfile.id || '')} teacherName={teacherProfile.fullName || teacherProfile.name} triggerToast={handleToast} />;
   }
 };

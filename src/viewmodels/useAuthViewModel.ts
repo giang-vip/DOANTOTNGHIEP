@@ -31,10 +31,13 @@ export function useAuthViewModel() {
       
       let userRole: 'admin' | 'teacher' | 'student' = 'student';
       if (userResponse.roles) {
-        const roleNames = userResponse.roles.map((r: any) => r.name);
-        if (roleNames.includes('ROLE_ADMIN') || roleNames.includes('ADMIN')) userRole = 'admin';
-        else if (roleNames.includes('ROLE_TEACHER') || roleNames.includes('TEACHER')) userRole = 'teacher';
-        else if (roleNames.includes('ROLE_STUDENT') || roleNames.includes('STUDENT')) userRole = 'student';
+        const roleNames = userResponse.roles.map((r: any) => 
+          String(r.name || r).toUpperCase().replace('ROLE_', '')
+        );
+        
+        if (roleNames.includes('ADMIN')) userRole = 'admin';
+        else if (roleNames.includes('TEACHER')) userRole = 'teacher';
+        else if (roleNames.includes('STUDENT')) userRole = 'student';
       }
 
       const mappedUser: User = {
@@ -66,7 +69,9 @@ export function useAuthViewModel() {
           dateOfBirth: userResponse.dateOfBirth || 'Chưa cập nhật',
           gender: userResponse.gender || 'Chưa cập nhật',
           gpa: userResponse.gpa || 0,
-          totalCredits: userResponse.totalCredits || 0
+          totalCredits: userResponse.totalCredits || 0,
+          majorTotalCredits: userResponse.majorTotalCredits,
+          entryStartYear: userResponse.entryStartYear
         } as any);
       } else if (userRole === 'teacher') {
         setCurrentProfile({
@@ -130,7 +135,9 @@ export function useAuthViewModel() {
             dateOfBirth: response.userInfo?.dateOfBirth || 'Chưa cập nhật',
             gender: response.userInfo?.gender || 'Chưa cập nhật',
             gpa: response.userInfo?.gpa || 0,
-            totalCredits: response.userInfo?.totalCredits || 0
+            totalCredits: response.userInfo?.totalCredits || 0,
+            majorTotalCredits: response.userInfo?.majorTotalCredits,
+            entryStartYear: response.userInfo?.entryStartYear
           } as any);
         } else if (mappedRole === 'teacher') {
           setCurrentProfile({

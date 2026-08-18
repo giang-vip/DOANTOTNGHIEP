@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
 import { Major, MajorRequest } from '../../../models/Major';
 import { Department } from '../../../models/Department';
+import { useSearchParams } from 'react-router-dom';
 
 export function useMajorListViewModel() {
   const [majors, setMajors] = useState<Major[]>([]);
@@ -19,6 +20,7 @@ export function useMajorListViewModel() {
     code: '',
     name: '',
     description: '',
+    totalCredits: 120,
     status: 'ACTIVE'
   });
 
@@ -27,7 +29,21 @@ export function useMajorListViewModel() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>(undefined);
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const departmentIdFromUrl = searchParams.get('departmentId');
+  const initialDepartmentId = departmentIdFromUrl ? Number(departmentIdFromUrl) : undefined;
+  
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>(initialDepartmentId);
+
+  // Sync state when URL changes
+  useEffect(() => {
+    if (departmentIdFromUrl) {
+      setSelectedDepartmentId(Number(departmentIdFromUrl));
+    } else {
+      setSelectedDepartmentId(undefined);
+    }
+  }, [departmentIdFromUrl]);
 
   const fetchOptions = async () => {
     try {
@@ -38,18 +54,26 @@ export function useMajorListViewModel() {
     }
   };
 
+  const fetchIdRef = React.useRef(0);
+
   const fetchMajors = async () => {
+    const fetchId = ++fetchIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
       const response = await adminApi.getAllMajors(page, pageSize, debouncedSearch, selectedDepartmentId);
+      if (fetchId !== fetchIdRef.current) return;
+      
       setMajors(response.content || []);
       setTotalPages(response.totalPages || 0);
       setTotalElements(response.totalElements || 0);
     } catch (err: any) {
+      if (fetchId !== fetchIdRef.current) return;
       setError(err.message || 'Lỗi khi tải dữ liệu ngành học');
     } finally {
-      setIsLoading(false);
+      if (fetchId === fetchIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -78,10 +102,11 @@ export function useMajorListViewModel() {
   const openAddModal = () => {
     setEditingItem(null);
     setFormData({ 
-      departmentId: departments.length > 0 ? departments[0].id : 0,
+      departmentId: selectedDepartmentId || (departments.length > 0 ? departments[0].id : 0),
       code: '',
       name: '',
       description: '',
+      totalCredits: 120,
       status: 'ACTIVE'
     });
     setErrors({});
@@ -95,6 +120,7 @@ export function useMajorListViewModel() {
       code: item.code,
       name: item.name,
       description: item.description || '',
+      totalCredits: item.totalCredits || 120,
       status: item.status || 'ACTIVE'
     });
     setErrors({});
@@ -105,7 +131,7 @@ export function useMajorListViewModel() {
     const { name, value } = e.target;
     setFormData(prev => ({ 
       ...prev, 
-      [name]: name === 'departmentId' ? Number(value) : value 
+      [name]: (name === 'departmentId' || name === 'totalCredits') ? Number(value) : value 
     }));
   };
 
@@ -179,6 +205,8 @@ export function useMajorListViewModel() {
     openEditModal,
     handleInputChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    setSearchParams,
+    departmentIdFromUrl
   };
 }

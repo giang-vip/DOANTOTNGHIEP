@@ -81,7 +81,7 @@ export function AnnouncementsView({ triggerToast }: AnnouncementsViewProps) {
               {errors.content && <p className="mt-1 text-xs text-rose-600 font-medium">{errors.content}</p>}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-end">
               <button
                 type="submit"
                 className="flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"

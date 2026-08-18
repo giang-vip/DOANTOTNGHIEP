@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { teacherApi } from '../../../api/services/teacherApi';
+import { adminApi } from '../../../api/services/adminApi';
 
 /**
  * ViewModel cho trang "Lớp của tôi" (Teacher My Classes).
@@ -20,6 +21,10 @@ export function useMyClassesViewModel(teacherId: string) {
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+
+  // Term info state
+  const [currentSemesterName, setCurrentSemesterName] = useState<string>('Đang cập nhật');
+  const [currentYearName, setCurrentYearName] = useState<string>('Đang cập nhật');
 
   /**
    * Lấy ID số nguyên từ đối tượng class.
@@ -46,8 +51,28 @@ export function useMyClassesViewModel(teacherId: string) {
     }
   };
 
+  const fetchCurrentTermInfo = async () => {
+    try {
+      const [semesters, years] = await Promise.all([
+        adminApi.getAllSemesters(),
+        adminApi.getAllAcademicYears()
+      ]);
+      const currentSem = semesters.find((s: any) => s.isCurrent) || semesters[0];
+      if (currentSem) {
+        setCurrentSemesterName(currentSem.name);
+        const currentYear = years.find((y: any) => String(y.id) === String(currentSem.academicYearId));
+        if (currentYear) {
+          setCurrentYearName(currentYear.code);
+        }
+      }
+    } catch (err) {
+      console.error('Không thể lấy thông tin kỳ học hiện tại:', err);
+    }
+  };
+
   useEffect(() => {
     fetchMyClasses();
+    fetchCurrentTermInfo();
   }, [teacherId]);
 
   // 2. Fetch danh sách SV và Thông báo khi chọn lớp khác
@@ -158,6 +183,8 @@ export function useMyClassesViewModel(teacherId: string) {
     isLoadingClasses,
     isLoadingStudents,
     isLoadingAnnouncements,
-    isPosting
+    isPosting,
+    currentSemesterName,
+    currentYearName
   };
 }

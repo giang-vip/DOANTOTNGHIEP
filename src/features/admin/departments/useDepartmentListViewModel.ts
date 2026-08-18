@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../api/services/adminApi';
 import { Department, DepartmentRequest } from '../../../models/Department';
+import { useSearchParams } from 'react-router-dom';
 
 export function useDepartmentListViewModel() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +137,7 @@ export function useDepartmentListViewModel() {
     openEditModal,
     handleInputChange,
     handleSave,
-    handleDelete
+    handleDelete,
+    setSearchParams
   };
 }

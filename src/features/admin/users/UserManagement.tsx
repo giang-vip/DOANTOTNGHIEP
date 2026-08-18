@@ -81,7 +81,7 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
     {
       header: 'Thao Tác',
       accessor: (item: UserAdmin) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={() => handleResetPassword(item, (msg) => triggerToast(msg, 'success'))}
             disabled={isLoading}

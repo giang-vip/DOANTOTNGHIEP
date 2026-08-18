@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { adminApi } from '../../../api/services/adminApi';
 import { Semester, SemesterRequest } from '../../../models/Semester';
 import { AcademicYear } from '../../../models/AcademicYear';
 
 export function useSemesterListViewModel() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearIdFromUrl = searchParams.get('yearId') ? Number(searchParams.get('yearId')) : undefined;
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,15 +47,21 @@ export function useSemesterListViewModel() {
     fetchData();
   }, []);
 
-  const filteredItems = semesters.filter(item => 
-    item.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredItems = semesters.filter(item => {
+    const matchSearch = item.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        item.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchYear = yearIdFromUrl ? item.academicYearId === yearIdFromUrl : true;
+    return matchSearch && matchYear;
+  });
+
+  const clearYearFilter = () => {
+    setSearchParams(new URLSearchParams());
+  };
 
   const openAddModal = () => {
     setEditingItem(null);
     setFormData({ 
-      academicYearId: academicYears.length > 0 ? academicYears[0].id : 0, 
+      academicYearId: yearIdFromUrl || (academicYears.length > 0 ? academicYears[0].id : 0), 
       code: '', 
       name: '', 
       startDate: '', 
@@ -98,6 +107,7 @@ export function useSemesterListViewModel() {
     return Object.keys(tempErrors).length === 0;
   };
 
+
   const handleSave = async (onSuccess: (msg: string) => void) => {
     if (!validate()) return;
     
@@ -141,6 +151,8 @@ export function useSemesterListViewModel() {
     error,
     searchTerm,
     setSearchTerm,
+    yearIdFromUrl,
+    clearYearFilter,
     isModalOpen,
     setIsModalOpen,
     editingItem,

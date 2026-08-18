@@ -92,7 +92,7 @@ function AppContent() {
                 setActiveTab={setAdminTab}
                 onLogout={handleLogoutAction}
               >
-                <AdminPortal activeTab={adminTab} triggerToast={triggerToast} />
+                <AdminPortal activeTab={adminTab} onTabChange={setAdminTab} triggerToast={triggerToast} />
               </Layout>
             ) : (
               <Navigate to="/login" replace />

@@ -14,13 +14,15 @@ export function DashboardView({ studentProfile }: DashboardViewProps) {
     accumulatedCredits,
     enrolledClassesCount,
     pendingAsmsCount,
-    announcements
+    announcements,
+    currentSemesterName,
+    currentYearName
   } = useDashboardViewModel(studentProfile);
 
   return (
     <div className="space-y-6">
       {/* Top Banner (Greeting Card) */}
-      <Card className="p-6 bg-gradient-to-r from-blue-700 via-indigo-750 to-slate-900 border-none text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+      <Card className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-lg shadow-blue-900/10 border-none text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
         <div className="space-y-3 relative z-10 w-full">
           <span className="text-[10px] font-bold tracking-widest text-blue-200 uppercase inline-flex items-center gap-1">
             <Sparkles className="h-3 w-3 animate-spin" /> Hệ thống quản lý học tập Hưng Nhân
@@ -28,8 +30,8 @@ export function DashboardView({ studentProfile }: DashboardViewProps) {
           
           <div className="flex flex-col sm:flex-row sm:items-end justify-between w-full gap-4">
             <div>
-              <h2 className="text-2xl font-black leading-tight mb-1">Chào mừng, {studentProfile.fullName || studentProfile.name}!</h2>
-              <p className="text-sm text-blue-100 font-medium">Chúc bạn một học kỳ mới thật nhiều năng lượng và thành công.</p>
+              <h2 className="text-2xl font-black leading-tight mb-1">✨ Chào mừng trở lại, {studentProfile.fullName || studentProfile.name}!</h2>
+              <p className="text-sm text-blue-100 font-medium">📅 Hệ thống đang hoạt động ở: {currentSemesterName} | Năm học: {currentYearName}</p>
             </div>
             
             {/* Student Info Card */}
@@ -64,11 +66,13 @@ export function DashboardView({ studentProfile }: DashboardViewProps) {
           <div className="h-11 w-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
             <BookOpen className="h-5.5 w-5.5" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tín Chỉ Học Phần</span>
-            <span className="text-2xl font-black text-slate-800 leading-none block mt-1">{accumulatedCredits} tín chỉ</span>
+            <span className="text-2xl font-black text-slate-800 leading-none block mt-1">
+              {accumulatedCredits} <span className="text-sm font-medium text-slate-400">/ <span className="text-base font-bold text-slate-400">{studentProfile.majorTotalCredits || '140'}</span> tín chỉ</span>
+            </span>
             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, (accumulatedCredits / 120) * 100)}%` }}></div>
+              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, (accumulatedCredits / (studentProfile.majorTotalCredits || 140)) * 100)}%` }}></div>
             </div>
           </div>
         </Card>

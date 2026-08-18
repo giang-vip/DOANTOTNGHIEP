@@ -131,43 +131,42 @@ export function useAttendanceViewModel(teacherId: string) {
     }
   };
 
+  const fetchRecordsForSession = async (sessionId: number | string) => {
+    try {
+      setIsLoadingRecords(true);
+      const res: any = await teacherApi.getAttendanceRecords(Number(sessionId));
+      const mapped = (res || []).map((r: any) => ({
+        id: String(r.id),
+        sessionId: String(r.attendanceSessionId),
+        studentId: r.studentCode,
+        studentName: r.studentName,
+        status: r.status.toLowerCase(), // 'present' | 'absent' | 'late'
+        note: r.note || ''
+      }));
+      const uniqueMapped: any[] = [];
+      const seenRecords = new Set<string>();
+      mapped.forEach((r: any) => {
+        if (!seenRecords.has(r.studentId)) {
+          seenRecords.add(r.studentId);
+          uniqueMapped.push(r);
+        }
+      });
+      
+      setRecords(uniqueMapped);
+    } catch (err) {
+      console.error('Lỗi lấy danh sách điểm danh:', err);
+    } finally {
+      setIsLoadingRecords(false);
+    }
+  };
+
   // 3. Khi đổi phiên điểm danh: Load danh sách records tương ứng
   useEffect(() => {
     if (!selectedSession) {
       setRecords([]);
       return;
     }
-
-    const fetchRecords = async () => {
-      try {
-        setIsLoadingRecords(true);
-        const res: any = await teacherApi.getAttendanceRecords(selectedSession.id);
-        const mapped = (res || []).map((r: any) => ({
-          id: String(r.id),
-          sessionId: String(r.attendanceSessionId),
-          studentId: r.studentCode,
-          studentName: r.studentName,
-          status: r.status.toLowerCase(), // 'present' | 'absent' | 'late'
-          note: r.note || ''
-        }));
-        const uniqueMapped: any[] = [];
-        const seenRecords = new Set<string>();
-        mapped.forEach(r => {
-          if (!seenRecords.has(r.studentId)) {
-            seenRecords.add(r.studentId);
-            uniqueMapped.push(r);
-          }
-        });
-        
-        setRecords(uniqueMapped);
-      } catch (err) {
-        console.error('Lỗi lấy danh sách điểm danh:', err);
-      } finally {
-        setIsLoadingRecords(false);
-      }
-    };
-
-    fetchRecords();
+    fetchRecordsForSession(selectedSession.id);
   }, [selectedSession]);
 
   const [reopenTimestamps, setReopenTimestamps] = useState<Record<string, number>>({});
@@ -324,6 +323,13 @@ export function useAttendanceViewModel(teacherId: string) {
         return Promise.resolve();
       });
       await Promise.all(updatePromises);
+      
+      // Reload lại data ngay lập tức để đồng bộ hóa số liệu UI
+      await fetchRecordsForSession(selectedSession.id);
+      if (sessions.length > 0) {
+        await fetchAllSessionsRecords(sessions);
+      }
+      
       onSuccess();
     } catch (err) {
       console.error(err);

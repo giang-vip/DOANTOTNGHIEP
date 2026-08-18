@@ -20,6 +20,8 @@ export interface Student {
   gpa?: number;
   totalCredits?: number;
   facePhotos?: string[];
+  majorTotalCredits?: number;
+  entryStartYear?: number;
 }
 
 export interface StudentRequest {

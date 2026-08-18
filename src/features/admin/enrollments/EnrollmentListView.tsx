@@ -73,7 +73,7 @@ export function EnrollmentListView({ triggerToast }: EnrollmentListViewProps) {
     {
       header: 'Thao Tác',
       accessor: (item: Enrollment) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}

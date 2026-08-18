@@ -35,8 +35,12 @@ axiosClient.interceptors.response.use(
 
     // Nếu lỗi 401 Unauthorized HOẶC mã lỗi là 1008 (UNAUTHENTICATED)
     if (status === 401 || code === 1008) {
+      const url = error.config?.url;
+      const isAuthUrl = url?.includes('/auth/me') || url?.includes('/auth/refresh');
+      
       // Token hết hạn hoặc không hợp lệ, xóa token và đẩy về login
-      if (window.location.pathname !== '/login') {
+      // Chỉ logout nếu đây là API xác thực (auth/me) hoặc backend trả về rõ mã 1008
+      if (window.location.pathname !== '/login' && (isAuthUrl || code === 1008)) {
         localStorage.removeItem('token');
         window.location.href = '/login';
       }

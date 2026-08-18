@@ -1,15 +1,18 @@
 import React from 'react';
 import { useSemesterListViewModel } from './useSemesterListViewModel';
 import { Card, Table, Modal, FormInput } from '../../../components/UI';
-import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, BookOpen, XCircle, ChevronLeft } from 'lucide-react';
 import { Semester } from '../../../models/Semester';
 import { SearchableSelect } from '../../../components/SearchableSelect';
+import { useSearchParams } from 'react-router-dom';
 
 interface SemesterListViewProps {
+  onTabChange?: (tab: string) => void;
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
 }
 
-export function SemesterListView({ triggerToast }: SemesterListViewProps) {
+export function SemesterListView({ onTabChange, triggerToast }: SemesterListViewProps) {
+  const [, setSearchParams] = useSearchParams();
   const {
     semesters,
     academicYears,
@@ -17,6 +20,8 @@ export function SemesterListView({ triggerToast }: SemesterListViewProps) {
     error,
     searchTerm,
     setSearchTerm,
+    yearIdFromUrl,
+    clearYearFilter,
     isModalOpen,
     setIsModalOpen,
     editingItem,
@@ -59,7 +64,21 @@ export function SemesterListView({ triggerToast }: SemesterListViewProps) {
     {
       header: 'Thao Tác',
       accessor: (item: Semester) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => {
+              if (onTabChange) {
+                const params: Record<string, string> = { semesterId: item.id!.toString() };
+                if (yearIdFromUrl) params.yearId = yearIdFromUrl.toString();
+                setSearchParams(params);
+                onTabChange('classes');
+              }
+            }}
+            title="Xem Lớp Học Phần"
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+          >
+            <BookOpen className="h-4 w-4" />
+          </button>
           <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
@@ -80,11 +99,28 @@ export function SemesterListView({ triggerToast }: SemesterListViewProps) {
     }
   ];
 
+  const currentYear = yearIdFromUrl ? academicYears?.find(y => y.id === yearIdFromUrl) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Quản Lý Học Kỳ</h2>
+          <div className="flex flex-col gap-1 mb-2">
+            {yearIdFromUrl && (
+              <button 
+                onClick={() => {
+                  clearYearFilter();
+                  if (onTabChange) onTabChange('academic-years');
+                }}
+                className="w-fit px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Quay lại chọn Năm
+              </button>
+            )}
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight mt-1">
+              Quản Lý Học Kỳ {currentYear ? `(Năm học ${currentYear.code})` : ''}
+            </h2>
+          </div>
           <p className="text-xs text-slate-500">Xem và hiệu chỉnh các học kỳ trong năm học</p>
         </div>
         <button
@@ -107,9 +143,10 @@ export function SemesterListView({ triggerToast }: SemesterListViewProps) {
         </div>
       )}
 
-      <Card className="p-4 flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative w-full sm:max-w-xs">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+      <Card className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-4 w-full sm:max-w-md">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
             <Search className="h-4 w-4" />
           </div>
           <input
@@ -119,6 +156,7 @@ export function SemesterListView({ triggerToast }: SemesterListViewProps) {
             placeholder="Tìm theo mã hoặc tên..."
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white"
           />
+        </div>
         </div>
       </Card>
 
