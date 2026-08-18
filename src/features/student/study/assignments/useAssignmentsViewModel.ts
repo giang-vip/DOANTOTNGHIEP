@@ -112,7 +112,7 @@ export function useAssignmentsViewModel(
       })) as QuizQuestion[];
 
       if (realQs.length === 0) {
-        triggerToast('Đề thi này chưa có cấu hình câu hỏi.', 'warning');
+        triggerToast('Đề thi này chưa có cấu hình câu hỏi.', 'danger');
         return;
       }
 

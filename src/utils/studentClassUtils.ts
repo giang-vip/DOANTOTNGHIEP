@@ -6,7 +6,7 @@ import { ClassSection, Student } from '../models';
  */
 export function getConsistentStudentClasses(classes: ClassSection[], studentProfile: Student) {
   return classes.filter((cls) => {
-    const isEnrolled = cls.studentIds.includes(studentProfile.id);
+    const isEnrolled = (cls as any).studentIds?.includes(studentProfile.id);
     const majorMatches =
       !studentProfile.majorId ||
       !cls.majorId ||

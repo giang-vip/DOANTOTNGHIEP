@@ -91,7 +91,7 @@ export function ProfileView({ teacherProfile, triggerToast }: ProfileViewProps) 
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-600">
               <Map className="h-4 w-4 text-slate-400 shrink-0" />
-              <span>Khoa: <strong className="text-slate-800">{profile.department}</strong></span>
+              <span>Khoa: <strong className="text-slate-800">{profile.departmentName}</strong></span>
             </div>
           </div>
         </Card>

@@ -47,7 +47,7 @@ export const QuizReviewPanel: React.FC<QuizReviewPanelProps> = ({
   const maxPoints = assignment?.maxPoints || 10;
 
   // Bản đồ tra cứu nhanh câu trả lời của SV theo questionId
-  const answerMap = new Map<string, QuizAnswer>();
+  const answerMap = new Map<string | number, QuizAnswer>();
   answers?.forEach((ans) => answerMap.set(ans.questionId, ans));
 
   // Tính toán số câu trả lời đúng của sinh viên

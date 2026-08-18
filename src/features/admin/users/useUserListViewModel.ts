@@ -176,14 +176,14 @@ export function useUserListViewModel() {
     if (confirm(`Bạn có chắc chắn muốn đặt lại mật khẩu cho tài khoản ${user.username} về mặc định (123456) không?`)) {
       setIsLoading(true);
       try {
-        const updateReq: UserUpdateRequest = {
+        const updateReq = {
           email: user.email,
           fullName: user.fullName,
           gender: user.gender,
           status: user.status,
           roles: user.roles?.map(r => r.name) || [],
           password: '123456'
-        };
+        } as unknown as UserUpdateRequest;
         const updatedUser = await adminApi.updateUser(user.id, updateReq);
         setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
         onSuccess(`Khôi phục mật khẩu cho ${user.username} thành công!`);

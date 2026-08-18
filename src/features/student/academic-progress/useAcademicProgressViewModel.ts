@@ -62,7 +62,7 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
           if (currentSem) {
             const currentYear = years.find(y => String(y.id) === String(currentSem.academicYearId));
             if (currentYear && studentProfile.entryStartYear) {
-              const currentStartYear = currentYear.startYear || parseInt(currentYear.code.substring(0, 4));
+              const currentStartYear = (currentYear as any).startYear || parseInt(currentYear.code.substring(0, 4));
               const entryStartYear = studentProfile.entryStartYear;
               const diffYears = currentStartYear - entryStartYear;
               
@@ -104,18 +104,18 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
       const assessments = [
         {
           name: 'Chuyên Cần',
-          weight: attW,
-          score: g.attendanceScore !== null ? Number(g.attendanceScore) : ''
+          weight: attW as number,
+          score: (g.attendanceScore !== null ? Number(g.attendanceScore) : '') as number | ''
         },
         {
           name: 'Giữa Kỳ',
-          weight: midW,
-          score: g.midtermScore !== null ? Number(g.midtermScore) : ''
+          weight: midW as number,
+          score: (g.midtermScore !== null ? Number(g.midtermScore) : '') as number | ''
         },
         {
           name: 'Cuối Kỳ',
-          weight: finW,
-          score: g.finalExamScore !== null ? Number(g.finalExamScore) : ''
+          weight: finW as number,
+          score: (g.finalExamScore !== null ? Number(g.finalExamScore) : '') as number | ''
         }
       ];
 
@@ -184,6 +184,7 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
       cumulativeGpa10,
       totalCredits,
       classification,
+      classificationVariant: (cumulativeGpa >= 3.2 ? 'success' : cumulativeGpa >= 2.5 ? 'info' : cumulativeGpa >= 2.0 ? 'warning' : 'danger') as "success" | "info" | "warning" | "danger" | "gray",
       totalCount: allClassGrades.length,
       completedCount: completed.length
     };

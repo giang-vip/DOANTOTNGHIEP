@@ -64,7 +64,7 @@ export function UserManagement({ triggerToast }: UserManagementProps) {
         const isTeacher = roles.includes('ROLE_TEACHER') || roles.includes('TEACHER');
         const isAdmin = roles.includes('ROLE_ADMIN') || roles.includes('ADMIN');
         return (
-          <Badge variant={isAdmin ? 'danger' : isTeacher ? 'warning' : 'primary'}>
+          <Badge variant={isAdmin ? 'danger' : isTeacher ? 'warning' : 'info'}>
             {isAdmin ? 'Quản trị viên' : isTeacher ? 'Giảng viên' : 'Sinh viên'}
           </Badge>
         );

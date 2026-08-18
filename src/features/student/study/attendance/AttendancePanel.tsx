@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Badge } from '../../../../components/UI';
-import { CheckCircle2, XCircle, Clock, Info } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Info, AlertCircle } from 'lucide-react';
 import { ClassSection, AttendanceSession, AttendanceRecord } from '../../../../models';
 import { useAttendanceViewModel } from './useAttendanceViewModel';
 

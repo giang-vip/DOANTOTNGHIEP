@@ -198,7 +198,7 @@ export function useRegistrationViewModel(studentProfile: Student) {
     }
 
     const maxCap = cls.capacity || 40;
-    if (cls.studentIds && cls.studentIds.length >= maxCap) {
+    if ((cls as any).studentIds && (cls as any).studentIds.length >= maxCap) {
       onError('Lớp học phần đã đạt sĩ số tối đa!');
       return;
     }

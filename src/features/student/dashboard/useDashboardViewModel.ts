@@ -70,7 +70,7 @@ export function useDashboardViewModel(studentProfile: Student) {
   const completedGrades = gradesList.filter(g => g.finalScore !== null);
   const totalCredits = completedGrades.reduce((sum, g) => sum + (g.credits || 0), 0);
   
-  const { cumulativeGpa } = useStudentAcademicStats(studentProfile.id, studentProfile.majorId);
+  const { cumulativeGpa } = useStudentAcademicStats(String(studentProfile.id), String(studentProfile.majorId));
 
   return {
     gpa: cumulativeGpa,

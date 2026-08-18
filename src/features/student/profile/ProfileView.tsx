@@ -53,7 +53,7 @@ export function ProfileView({ studentProfile, triggerToast }: ProfileViewProps) 
     trainingProgress
   } = useProfileViewModel(studentProfile, triggerToast);
 
-  const { cumulativeGpa } = useStudentAcademicStats(String(profile.id || ''), profile.majorId);
+  const { cumulativeGpa } = useStudentAcademicStats(String(profile.id || ''), String(profile.majorId || ''));
 
   const [email, setEmail] = useState(profile.email || '');
   const [phone, setPhone] = useState(profile.phone || '');
