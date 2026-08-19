@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useClassSectionListViewModel } from './useClassSectionListViewModel';
 import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../components/UI';
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, XCircle, BookOpen, ChevronLeft } from 'lucide-react';
 import { ClassSection } from '../../../models/ClassSection';
 import { SearchableSelect } from '../../../components/SearchableSelect';
+import { AdminClassDetailView } from '../class-details/AdminClassDetailView';
 
 interface ClassSectionListViewProps {
   onTabChange?: (tab: string) => void;
@@ -11,6 +12,7 @@ interface ClassSectionListViewProps {
 }
 
 export function ClassSectionListView({ onTabChange, triggerToast }: ClassSectionListViewProps) {
+  const [detailClassSection, setDetailClassSection] = useState<ClassSection | null>(null);
   const {
     classSections,
     subjects,
@@ -112,6 +114,13 @@ export function ClassSectionListView({ onTabChange, triggerToast }: ClassSection
       accessor: (item: ClassSection) => (
         <div className="flex gap-2 justify-end">
           <button
+            onClick={() => setDetailClassSection(item)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            title="Xem chi tiết"
+          >
+            <BookOpen className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
@@ -132,6 +141,16 @@ export function ClassSectionListView({ onTabChange, triggerToast }: ClassSection
   ];
 
   const currentSemester = semesterIdFromUrl ? semesters?.find(s => s.id === semesterIdFromUrl) : null;
+
+  if (detailClassSection) {
+    return (
+      <AdminClassDetailView
+        classSection={detailClassSection}
+        onBack={() => setDetailClassSection(null)}
+        triggerToast={triggerToast}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

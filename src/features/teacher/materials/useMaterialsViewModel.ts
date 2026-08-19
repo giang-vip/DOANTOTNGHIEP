@@ -10,7 +10,9 @@ export function useMaterialsViewModel(teacherId: string) {
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
   
   const [materials, setMaterials] = useState<any[]>([]);
+  const [subjectMaterials, setSubjectMaterials] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'subject' | 'class'>('subject');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -59,10 +61,16 @@ export function useMaterialsViewModel(teacherId: string) {
     const classId = getClassId(selectedClass);
     try {
       setIsLoadingMaterials(true);
-      const res: any = await teacherApi.getMaterials(classId);
-      const items = res.content || res || [];
       
-      const mapped = items.map((m: any) => {
+      const [materialsRes, subjectMaterialsRes]: [any, any] = await Promise.all([
+        teacherApi.getMaterials(classId),
+        teacherApi.getSubjectMaterials(classId)
+      ]);
+
+      const items = materialsRes.content || materialsRes || [];
+      const subjectItems = subjectMaterialsRes.content || subjectMaterialsRes || [];
+      
+      const mapItem = (m: any) => {
         const ext = m.fileName ? m.fileName.split('.').pop()?.toLowerCase() : 'pdf';
         let docType: 'pdf' | 'doc' | 'ppt' | 'video' | 'image' = 'pdf';
         if (ext === 'docx' || ext === 'doc') docType = 'doc';
@@ -72,18 +80,19 @@ export function useMaterialsViewModel(teacherId: string) {
 
         return {
           id: String(m.id),
-          classId: String(m.classSectionId),
-          title: m.title,
+          classId: String(m.classSectionId || ''),
+          title: m.title || m.fileName,
           type: docType,
-          url: m.fileUrl,
+          url: m.fileUrl || m.storageKey,
           fileName: m.fileName,
           fileSize: 'Có sẵn',
           description: m.fileName,
           uploadedAt: m.uploadedAt
         };
-      });
+      };
 
-      setMaterials(mapped);
+      setMaterials(items.map(mapItem));
+      setSubjectMaterials(subjectItems.map(mapItem));
     } catch (err) {
       console.error('Lỗi lấy tài liệu học tập:', err);
     } finally {
@@ -97,7 +106,12 @@ export function useMaterialsViewModel(teacherId: string) {
 
   // Lọc tài liệu theo từ khóa tìm kiếm
   const classMaterials = materials.filter(m =>
-    m.title.toLowerCase().includes(searchTerm.toLowerCase())
+    m.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    m.fileName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const filteredSubjectMaterials = subjectMaterials.filter(m =>
+    m.fileName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleFileSelect = (selectedFile: File) => {
@@ -113,6 +127,14 @@ export function useMaterialsViewModel(teacherId: string) {
     }
   };
 
+  const clearForm = () => {
+    setTitle('');
+    setDescription('');
+    setFile(null);
+    setActualFile(null);
+    setErrors({});
+  };
+
   // Upload tài liệu mới
   const handleUpload = async (onSuccess: (msg: string) => void, onError: (msg: string) => void) => {
     if (!selectedClass) return;
@@ -120,6 +142,9 @@ export function useMaterialsViewModel(teacherId: string) {
     const tempErrors: Record<string, string> = {};
     if (!title.trim()) tempErrors.title = 'Vui lòng nhập tiêu đề tài liệu';
     if (!actualFile) tempErrors.file = 'Vui lòng chọn hoặc kéo thả tài liệu cần tải lên';
+    else if (actualFile.size > 50 * 1024 * 1024) {
+      tempErrors.file = 'Dung lượng file vượt quá giới hạn 50MB. Vui lòng chọn file nhẹ hơn.';
+    }
 
     if (Object.keys(tempErrors).length > 0) {
       setErrors(tempErrors);
@@ -132,11 +157,7 @@ export function useMaterialsViewModel(teacherId: string) {
       
       await teacherApi.uploadMaterial(classId, title, description, actualFile);
       
-      setTitle('');
-      setDescription('');
-      setFile(null);
-      setActualFile(null);
-      setErrors({});
+      clearForm();
       setIsModalOpen(false);
       
       onSuccess(`Đã đăng tải tài liệu "${title}" thành công!`);
@@ -168,10 +189,12 @@ export function useMaterialsViewModel(teacherId: string) {
     selectedClass,
     setSelectedClass,
     materials: classMaterials,
+    subjectMaterials: filteredSubjectMaterials,
     searchTerm,
     setSearchTerm,
     isModalOpen,
     setIsModalOpen,
+    errors,
     previewMaterial,
     setPreviewMaterial,
     title,
@@ -179,10 +202,17 @@ export function useMaterialsViewModel(teacherId: string) {
     description,
     setDescription,
     file,
-    errors,
+    setFile,
+    actualFile,
+    setActualFile,
+    isLoadingClasses,
+    isLoadingMaterials,
+    isLoading: isLoading || isLoadingClasses || isLoadingMaterials,
+    activeTab,
+    setActiveTab,
     handleFileSelect,
+    clearForm,
     uploadMaterial: handleUpload,
-    deleteMaterial: handleDelete,
-    isLoading: isLoading || isLoadingClasses || isLoadingMaterials
+    deleteMaterial: handleDelete
   };
 }

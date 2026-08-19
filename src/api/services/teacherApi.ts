@@ -33,8 +33,12 @@ export const teacherApi = {
     return await axiosClient.delete(`/teacher/materials/${id}`);
   },
 
-  getMaterials: async (classId: number, page = 0, size = 10) => {
-    return await axiosClient.get(`/teacher/classes/${classId}/materials?page=${page}&size=${size}`);
+  getMaterials: async (classSectionId: number, page = 0, size = 10) => {
+    return await axiosClient.get(`/teacher/classes/${classSectionId}/materials?page=${page}&size=${size}`);
+  },
+
+  getSubjectMaterials: async (classSectionId: number, page = 0, size = 10) => {
+    return await axiosClient.get(`/teacher/classes/${classSectionId}/subject-materials?page=${page}&size=${size}`);
   },
 
   // --- My Classes (Module 1) ---

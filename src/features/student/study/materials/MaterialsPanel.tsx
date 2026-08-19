@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Badge, Modal } from '../../../../components/UI';
-import { FileText, PlayCircle, Image as ImageIcon, Download, Search, RefreshCw } from 'lucide-react';
+import { FileText, PlayCircle, Image as ImageIcon, Download, Search, RefreshCw, Eye } from 'lucide-react';
 import { ClassSection, LearningMaterial } from '../../../../models';
 import { DocumentPreviewer } from '../../../../components/DocumentPreviewer';
 import { useMaterialsViewModel } from './useMaterialsViewModel';
@@ -18,7 +18,10 @@ export function MaterialsPanel({ selectedClass, triggerToast }: MaterialsPanelPr
     setPreviewMaterial,
     loading,
     triggerRealDownload,
-    filteredMaterials
+    filteredMaterials,
+    filteredSubjectMaterials,
+    activeTab,
+    setActiveTab
   } = useMaterialsViewModel(selectedClass, triggerToast);
 
   const getFileIcon = (type: string) => {
@@ -33,7 +36,24 @@ export function MaterialsPanel({ selectedClass, triggerToast }: MaterialsPanelPr
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-        <h3 className="text-xs font-bold text-slate-750 uppercase tracking-wide">Thư Viện Học Liệu & Bài Giảng</h3>
+        <div className="flex bg-slate-100 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('subject')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              activeTab === 'subject' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            Tài liệu Môn học (Gốc)
+          </button>
+          <button
+            onClick={() => setActiveTab('class')}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              activeTab === 'class' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            Tài liệu Lớp (Giảng viên)
+          </button>
+        </div>
         <div className="relative w-full sm:w-64">
           <input
             type="text"
@@ -48,21 +68,21 @@ export function MaterialsPanel({ selectedClass, triggerToast }: MaterialsPanelPr
 
       {loading ? (
         <div className="p-8 text-center text-slate-400">Đang tải tài liệu...</div>
-      ) : filteredMaterials.length === 0 ? (
+      ) : (activeTab === 'subject' ? filteredSubjectMaterials : filteredMaterials).length === 0 ? (
         <Card className="p-12 text-center text-xs text-slate-400 font-medium">
           Không tìm thấy tài liệu nào phù hợp.
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredMaterials.map((mat) => (
+          {(activeTab === 'subject' ? filteredSubjectMaterials : filteredMaterials).map((mat: any) => (
             <Card key={mat.id} className="p-4 hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between min-h-[140px] bg-white group">
               <div className="space-y-2">
                 <div className="flex items-start gap-2.5">
                   <div className="p-2 bg-slate-50 rounded-lg border border-slate-100 shrink-0">
                     {getFileIcon(mat.type)}
                   </div>
-                  <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors" title={mat.title}>
-                    {mat.title}
+                  <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors" title={mat.title || mat.fileName}>
+                    {mat.title || mat.fileName}
                   </h4>
                 </div>
                 <p className="text-[10px] text-slate-500 line-clamp-2 leading-snug">
@@ -80,10 +100,10 @@ export function MaterialsPanel({ selectedClass, triggerToast }: MaterialsPanelPr
                     className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                     title="Xem trước"
                   >
-                    <Search className="h-3.5 w-3.5" />
+                    <Eye className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={() => triggerRealDownload(mat)}
+                    onClick={() => triggerRealDownload({ ...mat, fileUrl: mat.storageKey || mat.fileUrl })}
                     className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                     title="Tải xuống"
                   >

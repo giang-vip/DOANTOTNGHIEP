@@ -122,7 +122,7 @@ export function useStudentListViewModel() {
       userId: 0,
       studentCode: '',
       fullName: '',
-      gender: 'Nam',
+      gender: 'MALE',
       dateOfBirth: '',
       address: '',
       majorId: majors.length > 0 ? majors[0].id! : 0,
@@ -139,7 +139,7 @@ export function useStudentListViewModel() {
       userId: item.userId || 0,
       studentCode: item.studentCode,
       fullName: item.fullName,
-      gender: item.gender || 'Nam',
+      gender: item.gender || 'MALE',
       dateOfBirth: item.dateOfBirth || '',
       address: item.address || '',
       majorId: item.majorId || 0,
@@ -164,7 +164,7 @@ export function useStudentListViewModel() {
         setFormData(prev => ({
           ...prev,
           fullName: selectedUser.fullName,
-          gender: selectedUser.gender || 'Nam'
+          gender: selectedUser.gender || 'MALE'
         }));
       }
     }

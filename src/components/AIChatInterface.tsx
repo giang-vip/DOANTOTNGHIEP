@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, MessageSquare, X, Send, User, Trash2, Edit3, Plus, Paperclip, Mic, MicOff, Image, FileText, CheckCircle2, ChevronRight, File } from 'lucide-react';
 
+import { User as UserType } from '../models';
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'ai';
@@ -16,7 +18,11 @@ interface ChatSession {
   createdAt: string;
 }
 
-export const AIChatInterface = () => {
+interface AIChatInterfaceProps {
+  user?: UserType;
+}
+
+export const AIChatInterface = ({ user }: AIChatInterfaceProps) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -38,7 +44,8 @@ export const AIChatInterface = () => {
 
   // Load chat sessions from LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('hn_ai_chats');
+    const storageKey = user?.username ? `hn_ai_chats_${user.username}` : 'hn_ai_chats';
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -68,12 +75,15 @@ export const AIChatInterface = () => {
     };
     setSessions([defaultSession]);
     setActiveSessionId(defaultSession.id);
-  }, []);
+    setSessions([defaultSession]);
+    setActiveSessionId(defaultSession.id);
+  }, [user]);
 
   // Save sessions on change
   const saveSessions = (updated: ChatSession[]) => {
     setSessions(updated);
-    localStorage.setItem('hn_ai_chats', JSON.stringify(updated));
+    const storageKey = user?.username ? `hn_ai_chats_${user.username}` : 'hn_ai_chats';
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   useEffect(() => {
@@ -183,17 +193,20 @@ export const AIChatInterface = () => {
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       };
 
-      const finalSessions = updatedSessions.map(s => {
-        if (s.id === activeSessionId) {
-          return {
-            ...s,
-            messages: [...s.messages, aiMsg]
-          };
-        }
-        return s;
+      setSessions(prev => {
+        const newSessions = prev.map(s => {
+          if (s.id === activeSessionId) {
+            return {
+              ...s,
+              messages: [...s.messages, aiMsg]
+            };
+          }
+          return s;
+        });
+        const storageKey = user?.username ? `hn_ai_chats_${user.username}` : 'hn_ai_chats';
+        localStorage.setItem(storageKey, JSON.stringify(newSessions));
+        return newSessions;
       });
-
-      saveSessions(finalSessions);
     } catch (err) {
       console.error(err);
       const errMsg: ChatMessage = {
@@ -301,15 +314,15 @@ export const AIChatInterface = () => {
 
       {/* Chat Window with Sidebar */}
       {isChatOpen && (
-        <div className="fixed bottom-24 right-6 w-[42rem] h-[550px] bg-slate-900/90 backdrop-blur-2xl border border-slate-800 rounded-3xl shadow-3xl z-[100] overflow-hidden flex animate-scale-up text-slate-200">
+        <div className="fixed bottom-24 right-6 w-[42rem] h-[550px] bg-white backdrop-blur-2xl border border-slate-200 rounded-3xl shadow-xl z-[100] overflow-hidden flex animate-scale-up text-slate-800">
           
           {/* Sidebar - Chat History */}
-          <div className="w-52 border-r border-slate-800 bg-slate-950/80 flex flex-col">
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hội thoại AI</span>
+          <div className="w-52 border-r border-slate-200 bg-slate-50 flex flex-col">
+            <div className="p-3 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hội thoại AI</span>
               <button
                 onClick={createNewSession}
-                className="p-1 rounded-md hover:bg-slate-800 text-blue-400 transition-colors"
+                className="p-1 rounded-md hover:bg-slate-200 text-blue-600 transition-colors"
                 title="Tạo hội thoại mới"
               >
                 <Plus className="h-4 w-4" />
@@ -326,8 +339,8 @@ export const AIChatInterface = () => {
                   }}
                   className={`group p-2.5 rounded-xl cursor-pointer flex items-center justify-between text-left transition-all ${
                     activeSessionId === s.id
-                      ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20'
-                      : 'hover:bg-slate-900 text-slate-400 border border-transparent'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'hover:bg-slate-100 text-slate-600 border border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -339,7 +352,7 @@ export const AIChatInterface = () => {
                         onBlur={() => saveRenameSession(s.id)}
                         onKeyPress={(e) => e.key === 'Enter' && saveRenameSession(s.id)}
                         autoFocus
-                        className="bg-slate-800 text-slate-100 text-xs px-1 py-0.5 rounded border border-slate-650 w-full outline-none"
+                        className="bg-white text-slate-800 text-xs px-1 py-0.5 rounded border border-slate-300 w-full outline-none"
                       />
                     ) : (
                       <span className="text-[11px] font-medium truncate">{s.title}</span>
@@ -373,32 +386,32 @@ export const AIChatInterface = () => {
           </div>
 
           {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col bg-white">
             {/* Header */}
-            <div className="p-4 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     Hưng Nhân AI Study Buddy
                   </h4>
-                  <p className="text-[9px] text-slate-450 mt-0.5">Trợ lý hỗ trợ giải pháp học tập</p>
+                  <p className="text-[9px] text-slate-500 mt-0.5">Trợ lý hỗ trợ giải pháp học tập</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsChatOpen(false)} 
-                className="p-1 rounded-md hover:bg-slate-800 text-slate-450 hover:text-slate-200 transition-colors"
+                className="p-1 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Message History */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900/30">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
               {activeSession?.messages.map((msg) => (
                 <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'ai' && (
-                    <div className="h-7 w-7 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                    <div className="h-7 w-7 rounded-lg bg-slate-100 border border-slate-200 text-blue-600 flex items-center justify-center shrink-0">
                       <Bot className="h-4.5 w-4.5" />
                     </div>
                   )}
@@ -406,8 +419,8 @@ export const AIChatInterface = () => {
                   <div className="space-y-1">
                     <div className={`p-3 rounded-2xl text-[11px] leading-relaxed max-w-[22rem] ${
                       msg.role === 'user'
-                        ? 'bg-blue-600 text-white rounded-tr-none'
-                        : 'bg-slate-955 border border-slate-800 text-slate-200 rounded-tl-none'
+                        ? 'bg-blue-600 text-white rounded-br-sm'
+                        : 'bg-slate-100 border border-slate-200 text-slate-800 rounded-bl-sm'
                     }`}>
                       {msg.role === 'ai' ? parseMarkdown(msg.text) : <p>{msg.text}</p>}
                       
@@ -423,13 +436,13 @@ export const AIChatInterface = () => {
                         </div>
                       )}
                     </div>
-                    <p className={`text-[8px] text-slate-500 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    <p className={`text-[8px] text-slate-400 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
                       {msg.timestamp}
                     </p>
                   </div>
 
                   {msg.role === 'user' && (
-                    <div className="h-7 w-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-350 flex items-center justify-center shrink-0">
+                    <div className="h-7 w-7 rounded-lg bg-blue-100 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
                       <User className="h-4.5 w-4.5" />
                     </div>
                   )}
@@ -438,13 +451,13 @@ export const AIChatInterface = () => {
               
               {isLoading && (
                 <div className="flex gap-3 justify-start items-center">
-                  <div className="h-7 w-7 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                  <div className="h-7 w-7 rounded-lg bg-slate-100 border border-slate-200 text-blue-600 flex items-center justify-center shrink-0">
                     <Bot className="h-4.5 w-4.5" />
                   </div>
-                  <div className="flex items-center gap-1 bg-slate-955 border border-slate-800 p-3 rounded-2xl rounded-tl-none">
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-slate-450 animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  <div className="flex items-center gap-1 bg-slate-100 border border-slate-200 p-3 rounded-2xl rounded-tl-none">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }}></span>
                   </div>
                 </div>
               )}
@@ -453,17 +466,17 @@ export const AIChatInterface = () => {
             </div>
 
             {/* Input Bar */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950/40 space-y-3">
+            <div className="p-4 border-t border-slate-200 bg-white space-y-3">
               {/* Attachments preview list */}
               {attachments.length > 0 && (
                 <div className="flex gap-2 flex-wrap items-center">
                   {attachments.map((file, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-[9px] text-slate-300">
-                      {file.type.startsWith('image/') ? <Image className="h-3.5 w-3.5 text-blue-400" /> : <FileText className="h-3.5 w-3.5 text-slate-400" />}
+                    <div key={idx} className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-[9px] text-slate-600">
+                      {file.type.startsWith('image/') ? <Image className="h-3.5 w-3.5 text-blue-600" /> : <FileText className="h-3.5 w-3.5 text-slate-500" />}
                       <span className="max-w-[8rem] truncate">{file.name}</span>
                       <button
                         onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
-                        className="text-slate-450 hover:text-rose-400 ml-1"
+                        className="text-slate-400 hover:text-rose-500 ml-1"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -483,7 +496,7 @@ export const AIChatInterface = () => {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-xl transition-all cursor-pointer"
+                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-xl transition-all cursor-pointer"
                   title="Đính kèm tài liệu học tập"
                 >
                   <Paperclip className="h-4.5 w-4.5" />
@@ -502,7 +515,7 @@ export const AIChatInterface = () => {
                 ) : (
                   <button
                     onClick={startRecording}
-                    className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-xl transition-all cursor-pointer"
+                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-xl transition-all cursor-pointer"
                     title="Ghi âm câu hỏi"
                   >
                     <Mic className="h-4.5 w-4.5" />
@@ -516,7 +529,7 @@ export const AIChatInterface = () => {
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Hỏi AI Study Buddy về bài giảng, bài tập..."
-                  className="flex-1 bg-slate-900 border border-slate-800 text-[11px] rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-100"
+                  className="flex-1 bg-slate-50 border border-slate-200 text-[11px] rounded-xl px-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-800"
                 />
 
                 <button

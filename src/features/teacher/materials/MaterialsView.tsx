@@ -15,6 +15,7 @@ export function MaterialsView({ teacherId, triggerToast }: MaterialsViewProps) {
     selectedClass,
     setSelectedClass,
     materials,
+    subjectMaterials,
     searchTerm,
     setSearchTerm,
     isModalOpen,
@@ -30,7 +31,9 @@ export function MaterialsView({ teacherId, triggerToast }: MaterialsViewProps) {
     handleFileSelect,
     uploadMaterial,
     deleteMaterial,
-    isLoading
+    isLoading,
+    activeTab,
+    setActiveTab
   } = useMaterialsViewModel(teacherId);
 
   const triggerRealDownload = (mat: any) => {
@@ -107,9 +110,28 @@ export function MaterialsView({ teacherId, triggerToast }: MaterialsViewProps) {
 
       {selectedClass ? (
         <div className="space-y-5">
-          {/* Search bar */}
-          <Card className="p-4">
-            <div className="relative max-w-xs">
+          {/* Tabs and Search bar */}
+          <Card className="p-4 flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setActiveTab('subject')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  activeTab === 'subject' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                Tài liệu Môn học (Gốc)
+              </button>
+              <button
+                onClick={() => setActiveTab('class')}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  activeTab === 'class' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                Tài liệu Lớp
+              </button>
+            </div>
+            
+            <div className="relative max-w-xs w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <Search className="h-4 w-4" />
               </div>
@@ -124,29 +146,34 @@ export function MaterialsView({ teacherId, triggerToast }: MaterialsViewProps) {
           </Card>
 
           {/* Grid of Materials */}
-          {materials.length === 0 ? (
+          {(activeTab === 'subject' ? subjectMaterials : materials).length === 0 ? (
             <Card className="p-16 text-center text-slate-450 border-dashed">
               <FileUp className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              Chưa có tài liệu nào tải lên cho lớp học phần này. Hãy kích hoạt "Đăng tài liệu".
+              {activeTab === 'subject' 
+                ? 'Không có tài liệu gốc nào cho môn học này.' 
+                : 'Chưa có tài liệu nào tải lên cho lớp học phần này. Hãy kích hoạt "Đăng tài liệu".'
+              }
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {materials.map((mat) => (
+              {(activeTab === 'subject' ? subjectMaterials : materials).map((mat: any) => (
                 <Card key={mat.id} className="p-5 flex flex-col justify-between hover:border-blue-300 transition-all group">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       {getFileIcon(mat.type)}
-                      <button
-                        onClick={() => deleteMaterial(mat.id, mat.title, (msg) => triggerToast(msg, 'success'))}
-                        className="text-slate-350 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {activeTab === 'class' && (
+                        <button
+                          onClick={() => deleteMaterial(mat.id, mat.title || mat.fileName, (msg: string) => triggerToast(msg, 'success'))}
+                          className="text-slate-350 hover:text-rose-600 p-1.5 rounded-md hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
 
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">
-                        {mat.title}
+                      <h4 className="text-xs font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors" title={mat.title || mat.fileName}>
+                        {mat.title || mat.fileName}
                       </h4>
                       {mat.description && (
                         <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">

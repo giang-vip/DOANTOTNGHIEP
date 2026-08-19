@@ -32,7 +32,7 @@ export interface SubjectGradeInfo {
   gpa4: number | undefined;
 }
 
-export function useAcademicProgressViewModel(studentProfile: Student) {
+export function useAcademicProgressViewModel(studentProfile: Student, isAdmin?: boolean) {
   const [selectedSemester, setSelectedSemester] = useState<string>('Tất cả');
   const [gradesList, setGradesList] = useState<any[]>([]);
   const [classesList, setClassesList] = useState<any[]>([]);
@@ -45,11 +45,15 @@ export function useAcademicProgressViewModel(studentProfile: Student) {
       try {
         setLoading(true);
         // Load grades list
-        const gradesRes = await studentApi.getMyGrades(undefined, 0, 100);
+        const gradesRes = isAdmin 
+          ? await adminApi.getStudentGrades(studentProfile.id, undefined, 0, 100)
+          : await studentApi.getMyGrades(undefined, 0, 100);
         setGradesList((gradesRes as any)?.content || []);
 
         // Load classes list to get custom weights
-        const classesRes = await studentApi.getStudentClasses(0, 100);
+        const classesRes = isAdmin
+          ? await adminApi.getStudentClasses(studentProfile.id, 0, 100)
+          : await studentApi.getStudentClasses(0, 100);
         setClassesList((classesRes as any)?.content || []);
         
         // Fetch term info

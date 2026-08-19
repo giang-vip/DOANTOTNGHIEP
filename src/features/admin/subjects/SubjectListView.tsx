@@ -4,6 +4,8 @@ import { Card, Table, Modal, FormInput, Pagination, Badge } from '../../../compo
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle, ChevronLeft, BookOpen } from 'lucide-react';
 import { Subject } from '../../../models/Subject';
 import { SearchableSelect } from '../../../components/SearchableSelect';
+import { AdminSubjectDetailView } from '../subject-details/AdminSubjectDetailView';
+import { Eye } from 'lucide-react';
 
 interface SubjectListViewProps {
   onTabChange?: (tab: string) => void;
@@ -39,6 +41,8 @@ export function SubjectListView({ onTabChange, triggerToast }: SubjectListViewPr
     departmentIdFromUrl
   } = useSubjectListViewModel();
 
+  const [viewingSubject, setViewingSubject] = React.useState<Subject | null>(null);
+
   const handleSaveAction = () => {
     handleSave((msg) => triggerToast(msg, 'success'));
   };
@@ -67,6 +71,13 @@ export function SubjectListView({ onTabChange, triggerToast }: SubjectListViewPr
       accessor: (item: Subject) => (
         <div className="flex gap-2 justify-end">
           <button
+            onClick={() => setViewingSubject(item)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
+            title="Xem chi tiết"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
@@ -85,6 +96,10 @@ export function SubjectListView({ onTabChange, triggerToast }: SubjectListViewPr
       className: 'text-right'
     }
   ];
+
+  if (viewingSubject) {
+    return <AdminSubjectDetailView subject={viewingSubject} onBack={() => setViewingSubject(null)} triggerToast={triggerToast} />;
+  }
 
   return (
     <div className="space-y-6">

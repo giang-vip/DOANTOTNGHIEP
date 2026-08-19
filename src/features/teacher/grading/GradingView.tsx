@@ -7,9 +7,11 @@ import { convertToLetterGrade, convertToGpa4 } from '../../../utils/gradeUtils';
 interface GradingViewProps {
   teacherId: string;
   triggerToast: (msg: string, type: 'success' | 'danger') => void;
+  isAdmin?: boolean;
+  adminClassSection?: any;
 }
 
-export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
+export function GradingView({ teacherId, triggerToast, isAdmin, adminClassSection }: GradingViewProps) {
   const {
     myClasses,
     selectedClass,
@@ -27,7 +29,7 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
     gradeRows,
     saveAllGrades,
     saveColumnsConfig
-  } = useGradingViewModel(teacherId);
+  } = useGradingViewModel(teacherId, isAdmin, adminClassSection);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -280,34 +282,38 @@ export function GradingView({ teacherId, triggerToast }: GradingViewProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-56">
-            <select
-              value={selectedClass?.id || ''}
-              onChange={(e) => {
-                const found = myClasses.find(c => String(c.id) === e.target.value);
-                if (found) setSelectedClass(found);
-              }}
-              className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700 cursor-pointer shadow-3xs"
-            >
-              {myClasses.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.sectionCode || `LHP-${cls.id}`} - {cls.subjectName}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!isAdmin && (
+            <div className="w-56">
+              <select
+                value={selectedClass?.id || ''}
+                onChange={(e) => {
+                  const found = myClasses.find(c => String(c.id) === e.target.value);
+                  if (found) setSelectedClass(found);
+                }}
+                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 bg-white text-slate-700 cursor-pointer shadow-3xs"
+              >
+                {myClasses.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.sectionCode || `LHP-${cls.id}`} - {cls.subjectName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {selectedClass && (
             <div className="flex gap-2 flex-wrap justify-end">
-              <button
-                onClick={() => {
-                  setTempConfig([...columnsConfig]);
-                  setIsConfiguring(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
-              >
-                <Sliders className="h-3.5 w-3.5" /> Thiết lập trọng số
-              </button>
+              {!isAdmin && (
+                <button
+                  onClick={() => {
+                    setTempConfig([...columnsConfig]);
+                    setIsConfiguring(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Sliders className="h-3.5 w-3.5" /> Thiết lập trọng số
+                </button>
+              )}
               <button
                 onClick={handleExportCSV}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"

@@ -20,8 +20,12 @@ export const studentApi = {
   },
 
   // --- Materials ---
-  getMyMaterials: async (classSectionId: number, page = 0, size = 50) => {
+  getMaterials: async (classSectionId: number, page = 0, size = 10) => {
     return await axiosClient.get(`/student/classes/${classSectionId}/materials?page=${page}&size=${size}`);
+  },
+
+  getSubjectMaterials: async (classSectionId: number, page = 0, size = 10) => {
+    return await axiosClient.get(`/student/classes/${classSectionId}/subject-materials?page=${page}&size=${size}`);
   },
 
   // --- Assignments ---

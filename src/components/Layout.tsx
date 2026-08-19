@@ -288,7 +288,11 @@ export const Layout: React.FC<LayoutProps> = ({
           onClick={() => setIsSidebarOpen(false)}
         ></div>
       )}
-      <AIChatInterface />
+      
+      {/* AI Chat Interface - Only for students, hidden during exams (assignments tab) */}
+      {user.role === 'student' && activeTab !== 'assignments' && (
+        <AIChatInterface user={user} />
+      )}
     </div>
   );
 };

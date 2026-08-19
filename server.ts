@@ -4,7 +4,14 @@ import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 
-dotenv.config();
+import fs from 'fs';
+
+// Try to load .env.local first, then fallback to .env
+if (fs.existsSync('.env.local')) {
+  dotenv.config({ path: '.env.local' });
+} else {
+  dotenv.config();
+}
 
 const app = express();
 const PORT = 3000;

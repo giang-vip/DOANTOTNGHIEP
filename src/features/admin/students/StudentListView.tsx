@@ -4,6 +4,8 @@ import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../compo
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { Student } from '../../../models/Student';
 import { SearchableSelect } from '../../../components/SearchableSelect';
+import { AdminStudentDetailView } from '../student-details/AdminStudentDetailView';
+import { Eye } from 'lucide-react';
 
 interface StudentListViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
@@ -43,6 +45,8 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
     handleSave,
     handleDelete
   } = useStudentListViewModel();
+
+  const [viewingStudent, setViewingStudent] = React.useState<Student | null>(null);
 
   const handleSaveAction = () => {
     handleSave((msg) => triggerToast(msg, 'success'));
@@ -91,6 +95,13 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
       accessor: (item: Student) => (
         <div className="flex gap-2 justify-end">
           <button
+            onClick={() => setViewingStudent(item)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
+            title="Xem chi tiết"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
@@ -109,6 +120,10 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
       className: 'text-right'
     }
   ];
+
+  if (viewingStudent) {
+    return <AdminStudentDetailView student={viewingStudent} onBack={() => setViewingStudent(null)} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -296,12 +311,12 @@ export function StudentListView({ triggerToast }: StudentListViewProps) {
               <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Giới Tính</label>
               <SearchableSelect
                 name="gender"
-                value={formData.gender || 'Nam'}
+                value={formData.gender || 'MALE'}
                 onChange={(val) => handleInputChange({ target: { name: 'gender', value: val } } as any)}
                 disabled={isLoading || (!editingItem && formData.userId !== 0)}
                 options={[
-                  { value: 'Nam', label: 'Nam' },
-                  { value: 'Nữ', label: 'Nữ' }
+                  { value: 'MALE', label: 'Nam' },
+                  { value: 'FEMALE', label: 'Nữ' }
                 ]}
               />
             </div>

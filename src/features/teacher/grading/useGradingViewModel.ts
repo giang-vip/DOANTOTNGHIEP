@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { teacherApi } from '../../../api/services/teacherApi';
 
+import { adminApi } from '../../../api/services/adminApi';
+
 /**
  * Trả về cấu hình mặc định tương ứng với 3 cột điểm trong DB.
  */
@@ -13,12 +15,11 @@ export function getDefaultColumnsConfig(n: number) {
 }
 
 /**
- * ViewModel cho Nhập & Xuất Điểm (Teacher Grading) của Giảng viên.
- * Đồng bộ toàn bộ cấu hình trọng số và điểm số (Chuyên cần, Giữa kỳ, Cuối kỳ) của lớp học phần.
+ * ViewModel cho Nhập & Xuất Điểm (Teacher Grading) của Giảng viên và Admin.
  */
-export function useGradingViewModel(teacherId: string) {
+export function useGradingViewModel(teacherId: string, isAdmin?: boolean, adminClassSection?: any) {
   const [myClasses, setMyClasses] = useState<any[]>([]);
-  const [selectedClass, setSelectedClass] = useState<any | null>(null);
+  const [selectedClass, setSelectedClass] = useState<any | null>(isAdmin && adminClassSection ? adminClassSection : null);
   
   // Trọng số điểm: Chuyên cần, Giữa kỳ, Cuối kỳ
   const [columnsConfig, setColumnsConfig] = useState<Array<{ key: string; name: string; weight: number }>>([]);
@@ -40,8 +41,9 @@ export function useGradingViewModel(teacherId: string) {
     return Number(cls.id);
   };
 
-  // 1. Fetch danh sách lớp của GV
+  // 1. Fetch danh sách lớp của GV (bỏ qua nếu là Admin)
   useEffect(() => {
+    if (isAdmin) return;
     const fetchClasses = async () => {
       try {
         setIsLoadingClasses(true);
@@ -58,7 +60,7 @@ export function useGradingViewModel(teacherId: string) {
       }
     };
     fetchClasses();
-  }, [teacherId]);
+  }, [teacherId, isAdmin]);
 
   // 2. Load cấu hình cột (trọng số) và điểm số từ BE khi đổi lớp
   const fetchGradesData = async () => {
@@ -85,7 +87,9 @@ export function useGradingViewModel(teacherId: string) {
 
     try {
       setIsLoadingGrades(true);
-      const res: any = await teacherApi.getFinalGrades(classId);
+      const res: any = isAdmin 
+        ? await adminApi.getFinalGrades(classId) 
+        : await teacherApi.getFinalGrades(classId);
       const items = res.content || res || [];
       setRawGrades(items);
 
@@ -165,7 +169,11 @@ export function useGradingViewModel(teacherId: string) {
         };
       });
 
-      await teacherApi.updateStudentGrades(classId, payloads);
+      if (isAdmin) {
+        await adminApi.updateStudentGrades(classId, payloads);
+      } else {
+        await teacherApi.updateStudentGrades(classId, payloads);
+      }
       onSuccess('Lưu bảng điểm thành công!');
       fetchGradesData(); // Reload từ server
     } catch (err) {

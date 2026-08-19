@@ -22,6 +22,9 @@ export interface ClassSection {
   capacity: number;
   status?: string;
   enrolledCount?: number;
+  credits?: number;
+  semesterName?: string;
+  note?: string;
 }
 
 export interface ClassSectionRequest {

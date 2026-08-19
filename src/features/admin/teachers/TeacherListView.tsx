@@ -4,6 +4,8 @@ import { Card, Table, Modal, FormInput, Badge, Pagination } from '../../../compo
 import { Plus, Search, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { Teacher } from '../../../models/Teacher';
 import { SearchableSelect } from '../../../components/SearchableSelect';
+import { AdminTeacherDetailView } from '../teacher-details/AdminTeacherDetailView';
+import { Eye } from 'lucide-react';
 
 interface TeacherListViewProps {
   triggerToast: (msg: string, type: 'success' | 'danger' | 'info') => void;
@@ -37,6 +39,8 @@ export function TeacherListView({ triggerToast }: TeacherListViewProps) {
     handleSave,
     handleDelete
   } = useTeacherListViewModel();
+
+  const [viewingTeacher, setViewingTeacher] = React.useState<Teacher | null>(null);
 
   const handleSaveAction = () => {
     handleSave((msg) => triggerToast(msg, 'success'));
@@ -77,6 +81,13 @@ export function TeacherListView({ triggerToast }: TeacherListViewProps) {
       accessor: (item: Teacher) => (
         <div className="flex gap-2 justify-end">
           <button
+            onClick={() => setViewingTeacher(item)}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50"
+            title="Xem chi tiết"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => openEditModal(item)}
             disabled={isLoading}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
@@ -95,6 +106,10 @@ export function TeacherListView({ triggerToast }: TeacherListViewProps) {
       className: 'text-right'
     }
   ];
+
+  if (viewingTeacher) {
+    return <AdminTeacherDetailView teacher={viewingTeacher} onBack={() => setViewingTeacher(null)} />;
+  }
 
   return (
     <div className="space-y-6">

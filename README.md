@@ -18,3 +18,7 @@ View your app in AI Studio: https://ai.studio/apps/96ec4304-b36e-4269-ae38-a5e7e
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+tim lỗi type trong project để sửa
+npx tsc --noEmit > tsc_errors.txt
+

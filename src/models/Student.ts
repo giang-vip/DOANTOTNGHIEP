@@ -22,6 +22,12 @@ export interface Student {
   facePhotos?: string[];
   majorTotalCredits?: number;
   entryStartYear?: number;
+  schoolClass?: {
+    name?: string;
+    majorName?: string;
+    departmentName?: string;
+    courseYear?: string;
+  };
 }
 
 export interface StudentRequest {

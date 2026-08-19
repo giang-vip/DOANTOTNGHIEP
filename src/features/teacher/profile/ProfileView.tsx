@@ -87,11 +87,15 @@ export function ProfileView({ teacherProfile, triggerToast }: ProfileViewProps) 
           <div className="border-t border-slate-100 pt-4 text-left space-y-2.5">
             <div className="flex items-center gap-2.5 text-xs text-slate-600">
               <User className="h-4 w-4 text-slate-400 shrink-0" />
-              <span>Mã Giảng Viên: <strong className="text-slate-800">{profile.id}</strong></span>
+              <span>Mã Giảng Viên: <strong className="text-slate-800">{profile.teacherCode || profile.id}</strong></span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-slate-600">
               <Map className="h-4 w-4 text-slate-400 shrink-0" />
               <span>Khoa: <strong className="text-slate-800">{profile.departmentName}</strong></span>
+            </div>
+            <div className="flex items-center gap-2.5 text-xs text-slate-600">
+              <ShieldAlert className="h-4 w-4 text-slate-400 shrink-0" />
+              <span>Trình độ: <strong className="text-slate-800">{profile.title || 'Chưa cập nhật'}</strong></span>
             </div>
           </div>
         </Card>

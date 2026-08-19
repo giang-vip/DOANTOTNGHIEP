@@ -28,9 +28,10 @@ import {
 
 interface AcademicProgressViewProps {
   studentProfile: Student;
+  isAdmin?: boolean;
 }
 
-export function AcademicProgressView({ studentProfile }: AcademicProgressViewProps) {
+export function AcademicProgressView({ studentProfile, isAdmin }: AcademicProgressViewProps) {
   const {
     filteredClassGrades,
     semestersList,
@@ -41,7 +42,7 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
     currentTermText,
     semesterChartData,
     loading
-  } = useAcademicProgressViewModel(studentProfile);
+  } = useAcademicProgressViewModel(studentProfile, isAdmin);
 
   const [activeDetailClass, setActiveDetailClass] = useState<SubjectGradeInfo | null>(null);
 
@@ -340,7 +341,7 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
                                 {ast.score !== '' ? ast.score.toFixed(1) : 'Chưa nhập'}
                               </span>
                               <span className="text-[8px] text-slate-400 ml-0.5 font-normal">
-                                ({Math.round(ast.weight * 100)}%)
+                                ({Math.round(ast.weight)}%)
                               </span>
                             </div>
                           ))}
@@ -480,7 +481,7 @@ export function AcademicProgressView({ studentProfile }: AcademicProgressViewPro
                       <div className="font-semibold text-slate-700">
                         {ast.name}
                         <span className="text-[10px] text-slate-400 font-normal ml-1">
-                          Trọng số {Math.round(ast.weight * 100)}%
+                          Trọng số {Math.round(ast.weight)}%
                         </span>
                       </div>
                       <span className={`font-mono font-bold ${ast.score !== '' ? 'text-slate-800 text-sm' : 'text-slate-300 italic'}`}>

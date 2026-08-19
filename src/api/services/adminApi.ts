@@ -54,6 +54,15 @@ export const adminApi = {
     return await axiosClient.get(`/admin/dashboard/grade-distribution?${query.toString()}`);
   },
 
+  // === ADMIN GRADING API ===
+  getFinalGrades: async (classSectionId: number, page: number = 0, size: number = 500): Promise<any> => {
+    return await axiosClient.get(`/admin/classes/${classSectionId}/grades?page=${page}&size=${size}`);
+  },
+  
+  updateStudentGrades: async (classSectionId: number, data: any[]): Promise<any> => {
+    return await axiosClient.put(`/admin/classes/${classSectionId}/grades`, data);
+  },
+
   // === DEPARTMENT API ===
   getAllDepartments: async (): Promise<Department[]> => {
     const res: any = await axiosClient.get('/admin/departments?size=500');
@@ -125,6 +134,10 @@ export const adminApi = {
     const res: any = await axiosClient.get(url);
     return res.content || [];
   },
+  getSubjectById: async (id: number): Promise<Subject> => {
+    const res = await axiosClient.get(`/admin/subjects/${id}`);
+    return (res as any).result || res;
+  },
   createSubject: async (data: SubjectRequest): Promise<Subject> => {
     return await axiosClient.post('/admin/subjects', data);
   },
@@ -133,6 +146,26 @@ export const adminApi = {
   },
   deleteSubject: async (id: number): Promise<void> => {
     await axiosClient.delete(`/admin/subjects/${id}`);
+  },
+
+  // --- Subject Materials ---
+  getSubjectMaterials: async (subjectId: number, page = 0, size = 50) => {
+    return await axiosClient.get(`/admin/subjects/${subjectId}/materials?page=${page}&size=${size}`);
+  },
+  uploadSubjectMaterial: async (subjectId: number, data: { fileName: string, storageKey: string, mimeType?: string }) => {
+    return await axiosClient.post(`/admin/subjects/${subjectId}/materials`, data);
+  },
+  uploadFile: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return await axiosClient.post('/admin/subjects/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  deleteSubjectMaterial: async (materialId: number) => {
+    await axiosClient.delete(`/admin/subjects/materials/${materialId}`);
   },
 
   // --- Majors ---
@@ -229,8 +262,26 @@ export const adminApi = {
     const res: any = await axiosClient.get(url);
     return res;
   },
+
+  getStudentGrades: async (studentId: number, semesterId?: number, page = 0, size = 50) => {
+    const semQuery = semesterId ? `&semesterId=${semesterId}` : '';
+    return await axiosClient.get(`/admin/students/${studentId}/grades?page=${page}&size=${size}${semQuery}`);
+  },
+
+  getStudentClasses: async (studentId: number, page = 0, size = 100) => {
+    return await axiosClient.get(`/admin/students/${studentId}/classes?page=${page}&size=${size}`);
+  },
+
   createStudent: async (data: StudentRequest): Promise<Student> => {
     return await axiosClient.post('/admin/students', data);
+  },
+
+  // --- Teachers ---
+  getTeacherClasses: async (teacherId: number, search?: string, semesterId?: number, page = 0, size = 10) => {
+    let url = `/admin/teachers/${teacherId}/classes?page=${page}&size=${size}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (semesterId) url += `&semesterId=${semesterId}`;
+    return await axiosClient.get(url);
   },
   updateStudent: async (id: number, data: StudentRequest): Promise<Student> => {
     return await axiosClient.put(`/admin/students/${id}`, data);
